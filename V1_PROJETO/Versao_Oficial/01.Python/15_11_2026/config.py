@@ -15,19 +15,15 @@ ARQ_BRENT = "Base_Brent_Weekly_2026_Tratada.csv"
 ARQUIVOS = (ARQ_BRASIL, ARQ_ESTADOS, ARQ_BRENT)
 
 # Pastas onde as bases tratadas são procuradas, em ordem de prioridade.
-# 1) variável de ambiente PI_BASES_DIR (se definida)  2) pasta do projeto no Windows
+# 1) variável de ambiente PI_BASES_DIR (se definida)  2) bases tratadas do projeto
 # 3) subpasta "bases" ao lado do app  4) a própria pasta do app
-PASTA_BASES_WINDOWS = Path(
-    r"C:\Users\flavia.calegari\Desktop\PROJETO_PI_LOW_CODE"
-    r"\Projeto-Integrador-Desenvolvimento-Low-Code-em-Ciencia-de-Dados"
-    r"\V1_PROJETO\Versao_Oficial\00.Bases\01.Tratadas"
-)
+PASTA_BASES_PROJETO = PASTA_APP.parents[1] / "00.Bases" / "01.Tratadas"
 
 
 def pastas_candidatas() -> list[Path]:
     env = os.environ.get("PI_BASES_DIR")
-    cand = [Path(env)] if env else []
-    cand += [PASTA_BASES_WINDOWS, PASTA_APP / "bases", PASTA_APP]
+    cand = [Path(env).expanduser()] if env else []
+    cand += [PASTA_BASES_PROJETO, PASTA_APP / "bases", PASTA_APP]
     return cand
 
 
@@ -35,7 +31,7 @@ def pasta_bases() -> Path | None:
     """Primeira pasta candidata que contém os três arquivos; None se nenhuma contém."""
     for p in pastas_candidatas():
         try:
-            if all((p / a).exists() for a in ARQUIVOS):
+            if all((p / a).is_file() for a in ARQUIVOS):
                 return p
         except OSError:
             continue

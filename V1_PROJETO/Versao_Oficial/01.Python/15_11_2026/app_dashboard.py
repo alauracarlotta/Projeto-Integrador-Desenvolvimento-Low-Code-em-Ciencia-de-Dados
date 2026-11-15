@@ -12,6 +12,7 @@ variável de ambiente PI_BASES_DIR).
 from __future__ import annotations
 
 import inspect
+import importlib
 
 import pandas as pd
 import streamlit as st
@@ -60,10 +61,17 @@ def preparar(pasta: str):
 
 pasta = config.pasta_bases()
 if pasta is None:
+    # O Streamlit pode manter o módulo importado antes da correção dos caminhos.
+    # Atualize a configuração em disco antes de declarar as bases ausentes.
+    importlib.invalidate_caches()
+    importlib.reload(config)
+    pasta = config.pasta_bases()
+if pasta is None:
     st.error("Não encontrei as três bases tratadas. Procurei em:")
     st.code("\n".join(str(p) for p in config.pastas_candidatas()) + "\n\nArquivos esperados:\n"
             + "\n".join(config.ARQUIVOS))
-    st.info("Ajuste `PASTA_BASES_WINDOWS` em config.py ou defina a variável de ambiente PI_BASES_DIR.")
+    st.info("Coloque os três CSVs tratados em `V1_PROJETO/Versao_Oficial/00.Bases/01.Tratadas` "
+            "ou defina a variável de ambiente `PI_BASES_DIR` com a pasta que contém esses arquivos.")
     st.stop()
 try:
     D = preparar(str(pasta))
