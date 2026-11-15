@@ -87,11 +87,23 @@ O Streamlit disponibilizará um endereço local para acessar a aplicação no na
 
 ## 🧪 Status do desenvolvimento
 
-O ambiente inicial foi configurado e testado com uma aplicação demonstrativa de vendas, utilizando dados de exemplo para verificar o funcionamento do Streamlit e do Pandas.
+O dashboard está implementado em `app.py` e lê exclusivamente as bases de `V1_PROJETO/Versao_Oficial/00.Bases/01.Tratadas`:
 
-**A aplicação demonstrativa ainda não representa o dashboard definitivo do Projeto Integrador.**
+- `Base_Semanal_Estados_2026_Tratada.csv`
+- `Base_Semanal_Brasil_2026_Tratada.csv`
+- `Base_Brent_Weekly_2026_Tratada.csv`
 
-As próximas etapas incluem o tratamento e a integração das bases de dados, a definição das visualizações, a elaboração do protótipo e a implementação do dashboard com os dados oficiais.
+Os CSVs ANP usam ponto e vírgula como separador e datas no formato mês/dia/ano. O CSV Brent usa vírgula como separador e combina as colunas `Date` (mês abreviado em português e dia) e `Ano`. O pareamento associa a data EIA ao domingo inicial da semana ANP. O cache da aplicação é invalidado quando esses arquivos são atualizados. Os arquivos auxiliares `cache_sgs_*.csv` não são utilizados pelos gráficos atuais.
+
+- Cabeçalho com indicadores nacionais por combustível.
+- Evolução semanal Brasil com linhas para gasolina comum, etanol hidratado e diesel S10.
+- Evolução semanal pelas cinco regiões, usando médias simples dos preços estaduais, com referência nacional e opção de variação acumulada.
+- Comparação estadual por combustível: por padrão, colunas com os três estados mais baratos e os três mais caros, usando o preço médio no período. Também permite consultar todas as UFs ou apenas as selecionadas.
+- Evolução semanal do Brent com cotação, variação acumulada, média móvel opcional de quatro semanas e marcos de contexto.
+- Dispersão Brent × combustível por estado, correlação de Pearson e semanas pareadas. O botão Todos os estados reúne as 27 UFs, com cores e destaque interativo por região e identificação da UF no tooltip.
+- Filtros de período, combustível e UFs, metodologia e download dos dados filtrados.
+
+As anotações geopolíticas existentes são rótulos de contexto sem validação histórica na aplicação. A associação estatística não implica causalidade.
 
 ## 📋 Organização das atividades
 
