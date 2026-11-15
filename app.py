@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # Lê o arquivo .csv
-dados = pd.read_csv('data/processed/vendas.csv', sep=';', encoding='utf-8-sig')
+dados = pd.read_csv('data/processed/temp/vendas.csv', sep=';', encoding='utf-8-sig')
 
 # Remove espaços dos nomes das colunas
 dados.columns = dados.columns.str.strip()
