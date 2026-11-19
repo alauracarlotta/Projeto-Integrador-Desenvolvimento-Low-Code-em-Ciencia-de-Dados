@@ -1,357 +1,325 @@
-"""Dashboard ANP/EIA. Execute com: python -m streamlit run app.py."""
+"""Dashboard integrado SENAC | executar: streamlit run app.py"""
+from __future__ import annotations
+import os
 from pathlib import Path
-import altair as alt
 import pandas as pd
+import numpy as np
+import altair as alt
+import plotly.graph_objects as go
+import graficos as gr
 import streamlit as st
+import config
+import carregamento as cg
+import analises as an
 
-ROOT = Path(__file__).resolve().parent
-FUELS = {
-    'GASOLINA COMUM': 'Gasolina comum',
-    'ETANOL HIDRATADO': 'Etanol hidratado',
-    'OLEO DIESEL S10': 'Óleo diesel S10',
-}
-STATES = dict(
-    zip([
-        'ACRE', 'ALAGOAS', 'AMAPA', 'AMAZONAS', 'BAHIA',
-        'CEARA', 'DISTRITO FEDERAL', 'ESPIRITO SANTO', 'GOIAS', 
-        'MARANHAO', 'MATO GROSSO', 'MATO GROSSO DO SUL',
-        'MINAS GERAIS', 'PARA', 'PARAIBA', 'PARANA', 
-        'PERNAMBUCO', 'PIAUI', 'RIO DE JANEIRO', 'RIO GRANDE DO NORTE',
-        'RIO GRANDE DO SUL', 'RONDONIA', 'RORAIMA', 'SANTA CATARINA',
-        'SAO PAULO', 'SERGIPE', 'TOCANTINS'
-    ],
-    [
-        'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
-        'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
-        'SP', 'SE', 'TO'
-    ])
-)
-DEFAULT_UFS = ['AM', 'GO', 'PE', 'RS', 'SP']
-REGIONS = {
-    'Norte': ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
-    'Nordeste': ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
-    'Centro-Oeste': ['DF', 'GO', 'MT', 'MS'],
-    'Sudeste': ['ES', 'MG', 'RJ', 'SP'],
-    'Sul': ['PR', 'RS', 'SC'],
-}
-UF_REGION = {uf: region for region, members in REGIONS.items() for uf in members}
-REGION_COLORS = ['#24c77a', '#ffd43b', '#ff943b', '#fb5869', '#48a6ff']
-MONTHS = dict(
-    zip([
-        'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out',
-        'nov', 'dez'
-    ], range(1, 13))
-)
+st.set_page_config(page_title='Instabilidade geopolítica | SENAC', page_icon='⛽', layout='wide')
+st.markdown('''<style>
+.stApp{background:#110e16;color:#f6f1f8}.block-container{max-width:1540px;padding-top:1.1rem}
+[data-testid="stVerticalBlockBorderWrapper"]>div{border-color:#665073!important;border-radius:13px;background:#18131e}
+[data-testid="stMetric"]{background:#241b2b;border:1px solid #574560;border-radius:10px;padding:12px}
+[data-testid="stMetricValue"]{color:#f9f4ff;font-size:1.75rem}
+[data-testid="stExpander"]{background:#21182a;border-color:#654875}
+.stButton button{background:#34203f;color:#f8efff;border:1px solid #9b60b4;width:100%}
+[data-baseweb="tag"]{background-color:#a73753!important}
+section[data-testid="stSidebar"]{display:none}
+h1{font-size:2.0rem!important}h3{font-size:1.25rem!important}
+</style>''', unsafe_allow_html=True)
 
+ROOT=Path(__file__).resolve().parent
+UF_SIGLAS={'Acre':'AC','Alagoas':'AL','Amapá':'AP','Amazonas':'AM','Bahia':'BA','Ceará':'CE','Distrito Federal':'DF','Espírito Santo':'ES','Goiás':'GO','Maranhão':'MA','Mato Grosso':'MT','Mato Grosso do Sul':'MS','Minas Gerais':'MG','Pará':'PA','Paraíba':'PB','Paraná':'PR','Pernambuco':'PE','Piauí':'PI','Rio de Janeiro':'RJ','Rio Grande do Norte':'RN','Rio Grande do Sul':'RS','Rondônia':'RO','Roraima':'RR','Santa Catarina':'SC','São Paulo':'SP','Sergipe':'SE','Tocantins':'TO'}
+DEFAULT=['AM','GO','PE','RS','SP']
+REGIONS={'Norte':['AC','AP','AM','PA','RO','RR','TO'],'Nordeste':['AL','BA','CE','MA','PB','PE','PI','RN','SE'],'Centro-Oeste':['DF','GO','MT','MS'],'Sudeste':['ES','MG','RJ','SP'],'Sul':['PR','RS','SC']}
+UF_REGION={u:r for r,ufs in REGIONS.items() for u in ufs}
+REGION_COLORS={'Norte':'#27935C','Nordeste':'#E7B82D','Centro-Oeste':'#E58A38','Sudeste':'#D95B5B','Sul':'#4385C6'}
+FUEL_COLORS={'Gasolina comum':'#FF993D','Etanol':'#29D87C','Diesel S10':'#48A6FF'}
+EVENTS=[('2026-02-28','Início do conflito (EUA × Irã)','#B65AF0'),('2026-04-13','Início do bloqueio naval','#FF9700'),('2026-08-30','Persistência do bloqueio naval','#2586FF')]
+PRICE='Preço médio'; CHANGE='Variação acumulada (%)'
 
-DATA_DIR = ROOT / 'V1_PROJETO' / 'Versao_Oficial' / '00.Bases' / '01.Tratadas'
-FILES = ['Base_Semanal_Estados_2026_Tratada.csv', 'Base_Semanal_Brasil_2026_Tratada.csv', 'Base_Brent_Weekly_2026_Tratada.csv']
-BRENT_SOURCE_COLUMN = 'Weekly Europe Brent Spot Price FOB  (Dollars per Barrel)'
-PRICE = 'Preço (R$/litro)'
-BRENT = 'Brent (US$/barril)'
-CHANGE = 'Variação acumulada (%)'
-COLORS = {'AM': '#24c77a', 'GO': '#ff943b', 'PE': '#ffd43b', 'RS': '#48a6ff', 'SP': '#fb5869', 'Brasil (média)': '#e6e0ec'}
-EVENTS = pd.DataFrame({'Semana': pd.to_datetime(['2026-02-28', '2026-04-13', '2026-06-21']), 'Marco': ['28/02 · Início do conflito (EUA × Irã)', '13/04 · Escalada das tensões', '21/06 · Cessar-fogo (parcial)']})
+def fmt(v,n=2):
+    return an.fmt(float(v),n) if pd.notna(v) else '—'
 
+def chart_base(chart,height=320):
+    return (chart.properties(height=height).configure(background='#18131e')
+        .configure_view(stroke=None)
+        .configure_axis(labelColor='#E5DDEC',titleColor='#E5DDEC',gridColor='#392D41',domainColor='#705D79')
+        .configure_legend(labelColor='#E5DDEC',titleColor='#E5DDEC'))
 
-@st.cache_data(show_spinner='Carregando bases tratadas ANP e EIA…')
-def load_data(*stamps: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Os timestamps invalidam o cache quando um CSV tratado é atualizado."""
-    tables = []
-    for filename in FILES[:2]:
-        path = DATA_DIR / filename
-        frame = pd.read_csv(path, sep=';', encoding='utf-8-sig', dtype=str)
-        frame = frame.loc[frame['PRODUTO'].isin(FUELS)].copy()
-        frame['Semana'] = pd.to_datetime(frame['DATA INICIAL'], format='%m/%d/%Y', errors='coerce')
-        frame[PRICE] = pd.to_numeric(frame['PREÇO MÉDIO REVENDA'].str.replace(',', '.', regex=False), errors='coerce')
-        frame['Combustível'] = frame['PRODUTO'].map(FUELS)
-        frame['UF'] = frame['ESTADO'].map(STATES) if 'ESTADO' in frame else 'Brasil (média)'
-        normalized = frame[['Semana', 'UF', 'Combustível', PRICE]]
-        if normalized.isna().any().any():
-            raise ValueError(f'{filename}: há datas, estados ou preços inválidos.')
-        if normalized.duplicated(['Semana', 'UF', 'Combustível']).any():
-            raise ValueError(f'{filename}: há registros duplicados para semana, UF e combustível.')
-        tables.append(normalized.sort_values('Semana'))
-    source = pd.read_csv(DATA_DIR / FILES[2], sep=',', encoding='utf-8-sig', dtype=str)
-    parts = source['Date'].str.strip().str.lower().str.extract(r'^([a-z]{3})\s+(\d{1,2})$')
-    dates = pd.to_datetime(pd.DataFrame({'year': source['Ano'], 'month': parts[0].map(MONTHS), 'day': parts[1]}), errors='coerce')
-    oil = pd.DataFrame({'Data EIA': dates, BRENT: pd.to_numeric(source[BRENT_SOURCE_COLUMN], errors='coerce')})
-    if oil.isna().any().any():
-        raise ValueError(f'{FILES[2]}: há datas ou cotações inválidas.')
-    oil['Semana'] = oil['Data EIA'] - pd.to_timedelta((oil['Data EIA'].dt.day_of_week + 1) % 7, unit='D')
-    for frame in [*tables, oil]:
-        if frame.empty:
-            raise ValueError('Uma das bases tratadas não contém registros válidos.')
-    if oil['Semana'].duplicated().any():
-        raise ValueError('A base Brent contém semanas duplicadas.')
-    return *tables, oil.sort_values('Semana')
+def marks(chart,begin,end,enabled):
+    if not enabled:return chart
+    for date,title,color in EVENTS:
+        dt=pd.Timestamp(date)
+        if begin<=dt<=end:
+            line=alt.Chart(pd.DataFrame({'date':[dt],'event':[title]})).mark_rule(color=color,strokeDash=[5,4],strokeWidth=2).encode(x='date:T',tooltip='event:N')
+            chart=chart+line
+    return chart
 
+def line_chart(df,y,colorfield,domain,colors,begin,end,events, ytitle, height=315):
+    base=alt.Chart(df).mark_line(point=alt.OverlayMarkDef(size=28),strokeWidth=2).encode(
+        x=alt.X('Semana:T',title='Semanas',axis=alt.Axis(format='%b/%Y',tickCount='month')),
+        y=alt.Y(f'{y}:Q',title=ytitle,scale=alt.Scale(zero=False)),
+        color=alt.Color(f'{colorfield}:N',scale=alt.Scale(domain=domain,range=colors),legend=alt.Legend(orient='right',title=None)),
+        tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),alt.Tooltip(f'{colorfield}:N'),alt.Tooltip(f'{y}:Q',format='.3f')])
+    return chart_base(marks(base,begin,end,events),height)
 
-def set_ufs(values: list[str]) -> None:
-    st.session_state['ufs'] = values
+@st.cache_data(show_spinner='Lendo e validando bases ANP/EIA…')
+def load(folder):
+    brasil,wb=cg.carregar_brasil(folder)
+    estados,we=cg.carregar_estados(folder)
+    brent,wt=cg.carregar_brent(folder)
+    estados['UF']=estados['Estado'].map(UF_SIGLAS)
+    return brasil,estados,brent,wb+we+wt
 
+folder=config.pasta_bases()
+if folder is None:
+    st.error('As três bases tratadas não foram encontradas em `data/processed/`. Verifique os arquivos ou defina `PI_BASES_DIR`.')
+    st.code('\n'.join(config.ARQUIVOS))
+    st.stop()
+try:
+    brasil,estados,brent,warnings=load(str(folder))
+except Exception as exc:
+    st.error(f'Falha ao ler as bases: {exc}')
+    st.stop()
 
-def br_number(value: float, digits: int = 2) -> str:
-    return f'{value:,.{digits}f}'.replace(',', '_').replace('.', ',').replace('_', '.')
+# A semana ANP é identificada pela data inicial (domingo); o Brent é associado ao domingo de sua semana.
+for frame in (brasil,estados):frame['Semana']=frame['Data inicial']
+brent['Semana']=brent['Data']-pd.to_timedelta((brent['Data'].dt.dayofweek+1)%7,unit='D')
+ufs=sorted(estados['UF'].dropna().unique().tolist())
+fuels=list(config.ORDEM_COMBUSTIVEIS)
+if 'ufs' not in st.session_state:st.session_state.ufs=[u for u in DEFAULT if u in ufs]
+if 'fuels' not in st.session_state:st.session_state.fuels=fuels.copy()
 
+def select_all():st.session_state.ufs=ufs.copy()
+def reset():st.session_state.ufs=[u for u in DEFAULT if u in ufs]
 
-def accumulated(frame: pd.DataFrame, group: str = 'UF') -> pd.DataFrame:
-    frame = frame.sort_values('Semana').copy()
-    baseline = frame.groupby([group, 'Combustível'])[PRICE].transform('first')
-    frame[CHANGE] = (frame[PRICE] / baseline.where(baseline.ne(0)) - 1) * 100
-    return frame
+st.title('⛽ Instabilidade geopolítica e os preços dos combustíveis no Brasil')
+st.caption('Preços semanais de revenda por UF e petróleo Brent  •  Projeto Integrador SENAC  •  Jan/2026 a Set/2026')
+indicators=st.container(border=True)
+with st.container(border=True):
+    st.subheader('⚑ Filtros')
+    c1,c2,c3,c4=st.columns([3,2.2,3,1.8])
+    selected_fuels=c1.multiselect('Combustível',fuels,key='fuels')
+    # Limites Jan–Set são a janela do projeto; dados não existentes nunca são interpolados.
+    months=[pd.Period(f'2026-{m:02d}') for m in range(1,10)]
+    selected_period=c2.select_slider('Período',options=months,value=(months[0],months[-1]),format_func=lambda x:x.strftime('%m/%Y'))
+    selected_ufs=c3.multiselect('UFs selecionadas',ufs,key='ufs')
+    c4.button('Todas as 27 UFs',on_click=select_all)
+    c4.button('Restaurar seleção',on_click=reset)
+    with st.expander('Filtros avançados'):
+        st.caption('O indicador de cada gráfico pode ser alterado na própria seção. A análise Brent × combustíveis permite escolher uma UF independente dos demais gráficos.')
+    show_events=st.checkbox('Mostrar marcos geopolíticos',value=True,key='global_events')
+    if show_events:
+        cols=st.columns(3)
+        for col,(date,title,color) in zip(cols,EVENTS):
+            col.markdown(f'<span style="color:{color}">●</span> **{pd.Timestamp(date):%d/%m/%Y}** · {title}',unsafe_allow_html=True)
 
+start,end=selected_period[0].start_time,selected_period[1].end_time
+b=brasil[brasil.Semana.between(start,end)&brasil['Combustível'].isin(selected_fuels)].copy()
+e=estados[estados.Semana.between(start,end)&estados['Combustível'].isin(selected_fuels)].copy()
+o=brent[brent.Semana.between(start,end)].copy()
+with indicators:
+    st.subheader('▥ Indicadores-chave (Brasil)')
+    st.caption('Preço médio da última semana disponível e variação desde a primeira semana disponível no período filtrado.')
+    cols=st.columns(3)
+    for col,fuel in zip(cols,fuels):
+        d=b[b['Combustível']==fuel].sort_values('Semana')
+        if d.empty:col.metric(fuel,'Sem dados');continue
+        first,last=d.iloc[0],d.iloc[-1]
+        delta=(last[PRICE]/first[PRICE]-1)*100 if first[PRICE] else np.nan
+        col.metric(fuel,f'R$ {fmt(last[PRICE])}',f'{fmt(delta)}% desde {first.Semana:%d/%m}',delta_color='inverse')
 
-def uf_color(uf: str) -> str:
-    """Use the same stable, distinct colors in the charts and their legends."""
-    palette = ['#79c6d0', '#c2ad8d', '#bc8df5', '#ffb55a', '#ef77cf', '#a5d65b',
-               '#e1cf58', '#a4a0ff', '#db9d74', '#ee91a8', '#8ed7bf', '#c4b4e9',
-               '#f2bd8e', '#75a5e3', '#d0dc9c', '#bdb8ff', '#dcaf65', '#9cc7ef',
-               '#f0a4ca', '#c8cf77', '#8bd0ab', '#b69bdc', '#91bfea', '#d0a692',
-               '#f6a8a0', '#b6c9db', '#86c8b5']
-    return COLORS.get(uf, palette[sorted(STATES.values()).index(uf)]) if uf != 'Brasil (média)' else COLORS[uf]
+with st.container(border=True):
+    st.markdown('**Questões da análise**')
+    cols=st.columns(4)
+    for col,title,question in zip(cols,['1. Cenário nacional','2. Diferenças regionais','3. Cenário internacional','4. Relação estatística'],['Como os preços evoluíram?','O comportamento é uniforme?','Como o Brent se comportou?','Há associação com o Brent?']):
+        col.markdown(f'**{title}**  \n{question}')
 
+with st.container(border=True):
+    st.subheader('1. Cenário nacional: evolução semanal dos preços')
+    if b.empty:st.info('Não há dados nacionais no período e combustíveis selecionados.')
+    else:
+        d=b.sort_values('Semana').copy()
+        fig=line_chart(d,PRICE,'Combustível',fuels,[FUEL_COLORS[f] for f in fuels],start,end,show_events,'R$/litro')
+        st.altair_chart(fig,use_container_width=True,theme=None)
 
-def uf_legend(values) -> None:
-    # Render outside Vega's canvas so 27 UFs cannot consume the plot height.
-    items = []
-    for uf in sorted(set(values)):
-        dash = 'dashed' if uf == 'Brasil (média)' else 'solid'
-        items.append(f'<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap"><span style="width:22px;border-top:3px {dash} {uf_color(uf)}"></span>{uf}</span>')
-    st.markdown('<div aria-label="Legenda das UFs" style="display:flex;flex-wrap:wrap;gap:12px 20px;padding:8px 4px 16px;color:#eee8f4;font-size:13px">' + ''.join(items) + '</div>', unsafe_allow_html=True)
-
-
-def styled(chart: alt.TopLevelMixin, height: int = 260) -> alt.TopLevelMixin:
-    return chart.properties(height=height, autosize=alt.AutoSizeParams(type='fit-x', contains='padding')).configure(background='#17151b').configure_view(stroke=None).configure_axis(labelColor='#e6e0ec', titleColor='#e6e0ec', gridColor='#38323e', domainColor='#867b90', labelFontSize=11)
-
-
-def timeline(data: pd.DataFrame, field: str, events: bool, national: bool = False) -> alt.TopLevelMixin:
-    enc = dict(x=alt.X('Semana:T', title='Semanas', axis=alt.Axis(format='%m/%Y', tickCount='month', labelOverlap=True)), y=alt.Y(field+':Q', scale=alt.Scale(zero=False)), tooltip=[alt.Tooltip('Semana:T', format='%d/%m/%Y'), alt.Tooltip(field+':Q', format='.2f')])
-    if 'UF' in data:
-        domain = sorted(data['UF'].unique())
-        enc['color'] = alt.Color('UF:N', scale=alt.Scale(domain=domain, range=[uf_color(uf) for uf in domain]), legend=None)
-        enc['detail'] = alt.Detail('UF:N')
-        enc['tooltip'].append(alt.Tooltip('UF:N'))
-        if national:
-            enc['strokeDash'] = alt.condition(alt.datum.UF == 'Brasil (média)', alt.value([6, 4]), alt.value([1, 0]))
-    if 'Região' in data:
-        enc['color'] = alt.Color('Região:N', scale=alt.Scale(domain=[*REGIONS, 'Brasil (média)'], range=[*REGION_COLORS, COLORS['Brasil (média)']]), legend=alt.Legend(orient='bottom', title=None, labelColor='#e6e0ec'))
-        enc['detail'] = alt.Detail('Região:N')
-        enc['tooltip'].append(alt.Tooltip('Região:N'))
-        if national:
-            enc['strokeDash'] = alt.condition(alt.datum['Região'] == 'Brasil (média)', alt.value([6, 4]), alt.value([1, 0]))
-    if 'Série' in data:
-        enc['color'] = alt.Color('Série:N', scale=alt.Scale(range=['#7fc9f5', '#ffd43b']), legend=alt.Legend(orient='bottom', title=None, labelColor='#e6e0ec'))
-        enc['detail'] = alt.Detail('Série:N')
-        enc['tooltip'].append(alt.Tooltip('Série:N'))
-    base = alt.Chart(data).mark_line(point=alt.OverlayMarkDef(size=22), color='#7fc9f5', strokeWidth=2).encode(**enc)
-    if events:
-        visible = EVENTS.loc[EVENTS['Semana'].between(data['Semana'].min(), data['Semana'].max())]
-        rules = alt.Chart(visible).mark_rule(color='#bb75ec', strokeDash=[6, 4]).encode(x='Semana:T', tooltip=['Marco:N'])
-        labels = alt.Chart(visible).mark_text(align='left', angle=270, dx=7, dy=8, color='#d9a5ff', fontSize=10).encode(x='Semana:T', y=alt.value(6), text='Marco:N')
-        base = base + rules + labels
-    return styled(base.interactive(), 360)
-
-
-def main() -> None:
-    st.set_page_config(page_title='Combustíveis no Brasil | ANP e EIA', page_icon='⛽', layout='wide')
-    st.markdown("""<style>
-    .stApp {background: #100f13; color: #f5f1f8; color-scheme: dark;}
-    .block-container {max-width: 1600px; padding: 1.2rem 1.4rem 1rem;}
-    h1 {font-size: clamp(1.5rem, 2.6vw, 2.5rem) !important; padding-bottom: .1rem !important;}
-    h3 {font-size: 1.18rem !important; padding-top: 0 !important;}
-    [data-testid="stVerticalBlockBorderWrapper"] > div {border-color: #706476 !important; border-radius: 12px; background: linear-gradient(120deg,#1c1920,#161419);}
-    [data-testid="stMetric"] {background: #211d25; border: 1px solid #66596e; border-radius: 12px; padding: 12px 18px;}
-    [data-testid="stMetricValue"] {font-size: 1.9rem; color: #fff;}
-    [data-testid="stWidgetLabel"], [data-testid="stCaptionContainer"] {color: #ded0eb;}
-    [data-baseweb="select"] > div {background-color: #29232f; color: #fff; border-color: #796987;}
-    [data-baseweb="tag"] {background-color: #803147; color: #fff;}
-    .stButton button, .stDownloadButton button {background: #292130; color: #f5edff; border: 1px solid #9876ad;}
-    [data-testid="stExpander"] {background: #1b171f; border-color: #796987;}
-    </style>""", unsafe_allow_html=True)
-    st.title('⛽ Instabilidade geopolítica e os preços dos combustíveis no Brasil')
-    st.caption('Preços semanais de revenda por UF e petróleo Brent • Projeto Integrador SENAC')
-    try:
-        anp, brasil, brent = load_data(*( (DATA_DIR / name).stat().st_mtime_ns for name in FILES))
-    except (OSError, ValueError, KeyError, StopIteration) as exc:
-        st.error(f'Não foi possível carregar os CSVs em {DATA_DIR.relative_to(ROOT)}: {exc}')
-        st.stop()
-    ufs = sorted(anp['UF'].unique())
-    if 'ufs' not in st.session_state:
-        st.session_state['ufs'] = [uf for uf in DEFAULT_UFS if uf in ufs]
-    months = sorted(anp['Semana'].dt.to_period('M').unique())
-    defaults = tuple(min(months, key=lambda p: abs(p.ordinal - target.ordinal)) for target in [pd.Period('2026-02'), pd.Period('2026-08')])
-    # Reserve the indicators' position; populate after reading the current filters.
-    indicators = st.container(border=True)
-    with st.container(border=True):
-        st.subheader('☷ Filtros')
-        fc, dc, uc, actions = st.columns([3, 2, 2.5, 2])
-        fuels = fc.multiselect('Combustível', list(FUELS.values()), default=list(FUELS.values()), key='fuels')
-        period = dc.select_slider('Período', options=months, value=defaults, format_func=lambda p: p.strftime('%m/%Y'), key='period')
-        selected_ufs = uc.multiselect('UFs selecionadas', ufs, key='ufs')
-        actions.button('Todas as 27 UFs', on_click=set_ufs, args=(ufs,), width='stretch', key='all_ufs')
-        actions.button('Restaurar seleção', on_click=set_ufs, args=(DEFAULT_UFS,), width='stretch', key='reset_ufs')
-        with st.expander('Filtros avançados'):
-            evolution_fuel = st.selectbox('Combustível da evolução semanal', fuels, key='evolution_fuel') if fuels else None
-            st.caption('A evolução exibe um combustível por vez. O Brent depende apenas do período; a associação permite escolher sua própria UF.')
-    start, end = period[0].start_time, period[1].end_time
-    st.caption(f'Período analisado: {start:%d/%m/%Y} – {end:%d/%m/%Y}')
-    filtered = anp.loc[anp['Semana'].between(start, end) & anp['Combustível'].isin(fuels) & anp['UF'].isin(selected_ufs)]
-    national = brasil.loc[brasil['Semana'].between(start, end) & brasil['Combustível'].isin(fuels)]
-    oil = brent.loc[brent['Semana'].between(start, end)]
-    with indicators:
-        st.subheader('▥ Indicadores-chave (Brasil)')
-        st.caption('Preço nacional da última semana disponível e variação em relação à primeira semana do período, por combustível.')
-        if not fuels:
-            st.info('Selecione pelo menos um combustível.')
+st.subheader('2. Diferenças regionais')
+left,right=st.columns(2)
+with left,st.container(border=True):
+    st.markdown('#### 2.1 Evolução do preço médio por região')
+    reg_fuel=st.selectbox('Combustível (regiões)',selected_fuels if selected_fuels else fuels,key='region_fuel')
+    region=e[e['Combustível']==reg_fuel].groupby(['Semana','Região'],as_index=False)[PRICE].mean()
+    if region.empty:st.info('Sem dados regionais.')
+    else:
+        fig=line_chart(region,PRICE,'Região',list(REGION_COLORS),list(REGION_COLORS.values()),start,end,show_events,'Preço médio (R$/litro)',300)
+        st.altair_chart(fig,use_container_width=True,theme=None)
+        st.caption('Média simples dos preços médios estaduais disponíveis em cada região. Não ponderada pelo número de postos.')
+with right,st.container(border=True):
+    st.markdown('#### 2.2 Comparação estadual')
+    a1,a2,a3=st.columns(3)
+    rank_mode=a1.selectbox('Indicador',['Preço médio (R$/litro)','Variação no período (%)'],key='rank_mode')
+    rank_scope=a2.selectbox('Visualização',['3 mais caros e 3 mais baratos','UFs selecionadas','Todas as 27 UFs'],key='rank_scope')
+    rank_fuel=a3.selectbox('Combustível',selected_fuels if selected_fuels else fuels,key='rank_fuel')
+    state=e[e['Combustível']==rank_fuel].sort_values('Semana')
+    if state.empty:st.info('Sem dados estaduais.')
+    else:
+        grouped=state.groupby('UF',as_index=False).agg(**{'Média':(PRICE,'mean'),'Inicial':(PRICE,'first'),'Final':(PRICE,'last'),'Semanas':('Semana','nunique')})
+        grouped['Variação (%)']=(grouped['Final']/grouped['Inicial']-1)*100
+        metric='Média' if rank_mode.startswith('Preço') else 'Variação (%)'
+        if rank_scope=='UFs selecionadas':grouped=grouped[grouped.UF.isin(selected_ufs)]
+        if rank_scope.startswith('3 mais'):
+            ordered=grouped.sort_values([metric,'UF'])
+            grouped=pd.concat([ordered.head(3),ordered.tail(3)]).drop_duplicates('UF')
+            st.caption('Extremos entre todas as UFs: mais caros/baratos por preço ou maiores altas/menores variações em %.')
+        if grouped.empty:st.info('Selecione ao menos uma UF com dados.')
         else:
-            for col, fuel in zip(st.columns(len(fuels)), fuels):
-                series = national.loc[national['Combustível'].eq(fuel)].sort_values('Semana')
-                if series.empty:
-                    col.info(f'{fuel}: sem dados.')
-                    continue
-                first, last = series.iloc[0], series.iloc[-1]
-                change = (last[PRICE] / first[PRICE] - 1) * 100 if first[PRICE] else None
-                col.metric(fuel, f'R$ {br_number(last[PRICE])}', f'{br_number(change)}% desde {first["Semana"]:%d/%m}' if change is not None else None, delta_color='inverse', help=f'Última observação: {last["Semana"]:%d/%m/%Y}. Fonte: base semanal Brasil da ANP.')
-    with st.container(border=True):
-        st.subheader('〽 1. Evolução semanal Brasil')
-        st.caption('Visão nacional por combustível • Fonte: base semanal Brasil da ANP • R$/litro')
-        if national.empty:
-            st.info('Selecione pelo menos um combustível com dados no período.')
-        else:
-            national_chart = alt.Chart(national).mark_line(point=True, strokeWidth=2).encode(
-                x=alt.X('Semana:T', title='Semanas', axis=alt.Axis(format='%m/%Y', tickCount='month')),
-                y=alt.Y(PRICE + ':Q', scale=alt.Scale(zero=False)),
-                color=alt.Color('Combustível:N', scale=alt.Scale(domain=list(FUELS.values()), range=['#ff943b', '#24c77a', '#48a6ff']), legend=alt.Legend(orient='bottom', title=None, labelColor='#e6e0ec')),
-                tooltip=[alt.Tooltip('Semana:T', format='%d/%m/%Y'), 'Combustível:N', alt.Tooltip(PRICE + ':Q', format='.2f')],
-            )
-            st.altair_chart(styled(national_chart.interactive(), 300), width='stretch', theme=None)
-    with st.container(border=True):
-        st.subheader('〽 2. Evolução semanal dos preços por região')
-        st.caption(f'{evolution_fuel or "Selecione um combustível"} • Selecione o indicador, a referência nacional e os marcos geopolíticos.')
-        a, b, c = st.columns([2, 1, 1.5])
-        indicator = a.radio('Indicador', [PRICE, CHANGE], horizontal=True, label_visibility='collapsed', key='evolution_indicator')
-        show_brasil = b.checkbox('Mostrar referência Brasil', value=True)
-        show_events = c.checkbox('Mostrar marcos geopolíticos', value=True)
-        regional_source = anp.loc[anp['Semana'].between(start, end) & anp['Combustível'].eq(evolution_fuel)].copy()
-        regional_source['Região'] = regional_source['UF'].map(UF_REGION)
-        series = regional_source.groupby(['Semana', 'Região', 'Combustível'], as_index=False)[PRICE].mean()
-        st.caption('Média simples dos preços estaduais disponíveis em cada região, sem ponderação por postos. As cinco regiões independem do filtro de UFs.')
-        if show_brasil:
-            reference = national.loc[national['Combustível'].eq(evolution_fuel)].rename(columns={'UF': 'Região'})
-            series = pd.concat([series, reference], ignore_index=True)
-        if series.empty:
-            st.info('Selecione um combustível com dados no período.')
-        else:
-            st.altair_chart(timeline(accumulated(series, 'Região'), indicator, show_events, show_brasil), width='stretch', theme=None)
-    left, right = st.columns(2)
-    with left, st.container(border=True):
-        st.subheader('▥ 2. Comparação estadual — médias por combustível')
-        st.caption('Preço médio no período selecionado ou variação entre a primeira e a última semana disponível.')
-        a, b = st.columns(2)
-        comparison_fuel = a.selectbox('Combustível', fuels, key='comparison_fuel') if fuels else None
-        comparison_indicator = b.selectbox('Indicador', [PRICE, CHANGE], key='comparison_indicator')
-        scope = st.radio('Abrangência', ['3 mais baratos e 3 mais caros', 'UFs selecionadas', 'Todas as UFs'], horizontal=True, key='comparison_scope')
-        all_states = scope != 'UFs selecionadas'
-        state_data = anp.loc[anp['Semana'].between(start, end) & anp['Combustível'].eq(comparison_fuel) & (anp['UF'].isin(ufs if all_states else selected_ufs))]
-        if state_data.empty:
-            st.info('Sem dados para a comparação estadual.')
-        else:
-            frame = accumulated(state_data)
-            comparison = frame.groupby('UF', as_index=False)[PRICE].mean() if comparison_indicator == PRICE else frame.groupby('UF', as_index=False).tail(1)
-            if scope == '3 mais baratos e 3 mais caros':
-                comparison = comparison.sort_values([comparison_indicator, 'UF'])
-                comparison = pd.concat([comparison.head(3), comparison.tail(3)]).drop_duplicates('UF')
-                st.caption('Extremos entre todas as UFs no período, independentemente do filtro de UFs. Empates são ordenados pela sigla.' if comparison_indicator == PRICE else 'Exibindo as três menores e as três maiores variações entre todas as UFs.')
-            color_domain = sorted(comparison['UF'].unique())
-            color_range = [uf_color(uf) for uf in color_domain]
-            bars = alt.Chart(comparison).mark_bar(cornerRadiusEnd=3).encode(x=alt.X(comparison_indicator+':Q', scale=alt.Scale(zero=True)), y=alt.Y('UF:N', sort='-x', title=None), color=alt.Color('UF:N', scale=alt.Scale(domain=color_domain, range=color_range), legend=None), tooltip=['UF:N', alt.Tooltip(comparison_indicator+':Q', format='.2f')])
-            labels = bars.mark_text(align='right', dx=-6, color='white').encode(text=alt.Text(comparison_indicator+':Q', format='.2f'))
-            if scope == '3 mais baratos e 3 mais caros':
-                bars = alt.Chart(comparison).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-                    x=alt.X('UF:N', sort=alt.SortField(field=comparison_indicator, order='ascending'), title='UF'),
-                    y=alt.Y(comparison_indicator+':Q', scale=alt.Scale(zero=True)),
-                    color=alt.Color('UF:N', scale=alt.Scale(domain=color_domain, range=color_range), legend=None),
-                    tooltip=['UF:N', alt.Tooltip(comparison_indicator+':Q', format='.2f')],
-                )
-                labels = bars.mark_text(dy=-10, color='white').encode(text=alt.Text(comparison_indicator+':Q', format='.2f'))
-            st.altair_chart(styled(bars + labels, max(240, 26 * len(comparison))), width='stretch', theme=None)
-            uf_legend(comparison['UF'])
-    with right, st.container(border=True):
-        st.subheader('♧ 3. Evolução semanal do petróleo Brent')
-        st.caption('Cotação semanal em US$/barril • Fonte: EIA')
-        oil_indicator = st.radio('Visualizar Brent', [BRENT, CHANGE], horizontal=True, key='oil_indicator')
-        smooth_oil = st.checkbox('Sobrepor média móvel de 4 semanas', key='smooth_oil')
-        oil_events = st.checkbox('Mostrar marcos geopolíticos no Brent', value=True, key='oil_events')
-        if oil.empty:
-            st.info('A EIA não possui dados no período selecionado.')
-        else:
-            oil_view = oil.sort_values('Semana').copy()
-            first_oil = oil_view[BRENT].iloc[0]
-            oil_view[CHANGE] = (oil_view[BRENT] / first_oil - 1) * 100 if first_oil else float('nan')
-            last_oil = oil_view.iloc[-1]
-            m1, m2 = st.columns(2)
-            m1.metric('Última cotação', f'US$ {br_number(last_oil[BRENT])}', help=f'Semana de {last_oil["Semana"]:%d/%m/%Y}')
-            m2.metric('Variação no período', f'{br_number(last_oil[CHANGE])}%', delta_color='off')
-            oil_plot = oil_view[['Semana', oil_indicator]].copy()
-            if smooth_oil:
-                # Use calendar windows so gaps are not counted as adjacent weeks.
-                moving = oil_plot.set_index('Semana')[oil_indicator].rolling('28D', min_periods=4).mean()
-                oil_plot['Média móvel (4 semanas)'] = moving.to_numpy()
-                oil_plot = oil_plot.melt('Semana', var_name='Série', value_name='Valor').rename(columns={'Valor': oil_indicator})
-                chart = timeline(oil_plot, oil_indicator, oil_events)
-                st.altair_chart(chart, width='stretch', theme=None)
-                st.caption('Média móvel dos últimos 28 dias, exibida após quatro observações no período selecionado.')
-            else:
-                st.altair_chart(timeline(oil_plot, oil_indicator, oil_events), width='stretch', theme=None)
-    with st.container(border=True):
-        st.subheader('⁙ 4. Associação Brent × combustíveis')
-        st.caption('Relação entre a cotação do Brent (US$/barril) e o preço do combustível (R$/litro) por UF selecionada.')
-        controls, plot, stats = st.columns([1, 3.4, 1.2])
-        controls.button('Todos os estados', on_click=lambda: st.session_state.update(analysis_uf='Todos'), key='analysis_all', width='stretch')
-        analysis_options = ['Todos', *ufs]
-        if 'analysis_uf' not in st.session_state:
-            st.session_state['analysis_uf'] = 'SP' if 'SP' in ufs else 'Todos'
-        analysis_uf = controls.selectbox('UF para análise', analysis_options, index=None, key='analysis_uf')
-        analysis_fuel = controls.selectbox('Combustível', fuels, key='analysis_fuel') if fuels else None
-        association = anp.loc[anp['Semana'].between(start, end) & (anp['UF'].isin(ufs) if analysis_uf == 'Todos' else anp['UF'].eq(analysis_uf)) & anp['Combustível'].eq(analysis_fuel)].merge(oil, on='Semana', how='inner', validate='many_to_one')
-        if association.empty:
-            plot.info('Não há semanas em comum para esta seleção.')
-        else:
-            scatter = alt.Chart(association).mark_circle(size=55, color='#fb6879', opacity=.9).encode(x=alt.X(BRENT+':Q', scale=alt.Scale(zero=False)), y=alt.Y(PRICE+':Q', scale=alt.Scale(zero=False)), tooltip=[alt.Tooltip('Semana:T', format='%d/%m/%Y'), alt.Tooltip(BRENT+':Q', format='.2f'), alt.Tooltip(PRICE+':Q', format='.3f')])
-            valid = len(association) >= 3 and association[BRENT].nunique() > 1 and association[PRICE].nunique() > 1
-            if analysis_uf == 'Todos':
-                association['Região'] = association['UF'].map(UF_REGION)
-                region_pick = alt.selection_point(fields=['Região'], bind='legend')
-                chart = alt.Chart(association).mark_circle(size=45).encode(
-                    x=alt.X(BRENT+':Q', scale=alt.Scale(zero=False)),
-                    y=alt.Y(PRICE+':Q', scale=alt.Scale(zero=False)),
-                    color=alt.Color('Região:N', scale=alt.Scale(domain=list(REGIONS), range=REGION_COLORS), legend=alt.Legend(orient='bottom', labelColor='#e6e0ec', titleColor='#e6e0ec')),
-                    opacity=alt.condition(region_pick, alt.value(.65), alt.value(.06)),
-                    tooltip=['UF:N', 'Região:N', alt.Tooltip('Semana:T', format='%d/%m/%Y'), alt.Tooltip(BRENT+':Q', format='.2f'), alt.Tooltip(PRICE+':Q', format='.3f')],
-                ).add_params(region_pick)
-                stats.metric('UFs exibidas', association['UF'].nunique())
-                stats.metric('Pares UF × semana', len(association))
-                plot.caption('Cada ponto representa uma UF em uma semana. Clique na legenda para destacar uma região; passe o mouse para identificar o estado.')
-                stats.caption('Selecione uma UF para consultar sua correlação e linha de tendência. Uma correlação única reunindo estados pode ocultar diferenças regionais.')
-            else:
-                chart = scatter + scatter.transform_regression(BRENT, PRICE).mark_line(color='#e9deef', strokeDash=[4, 4]) if valid else scatter
-                stats.metric('Correlação de Pearson', br_number(association[BRENT].corr(association[PRICE]), 3) if valid else 'Indisponível')
-            plot.altair_chart(styled(chart.interactive(), 360), width='stretch', theme=None)
-            stats.metric('Semanas pareadas', association['Semana'].nunique())
-        stats.caption('Associação não implica causalidade. Valores nominais, sem conversão cambial ou ajuste de defasagem.')
-    with st.expander('▣ Metodologia e fontes'):
-        st.markdown('As três fontes são lidas exclusivamente de `V1_PROJETO/Versao_Oficial/00.Bases/01.Tratadas`, nos arquivos com sufixo `_Tratada.csv`. Os indicadores e a referência Brasil usam a **base nacional da ANP**, sem calcular uma média das UFs. O ranking estadual usa a média simples das semanas disponíveis, sem ponderação por postos. A variação acumulada parte da primeira observação disponível de cada série no período. Lacunas não são preenchidas.')
-        st.markdown('As datas dos CSVs ANP seguem **mês/dia/ano**. A referência semanal EIA é associada ao domingo inicial da mesma semana ANP; apenas semanas presentes nas duas fontes entram na associação. Correlação e regressão são exibidas quando há pelo menos três pares e variabilidade nas duas séries.')
-        st.markdown('As séries regionais usam a média simples dos preços estaduais disponíveis em cada semana, sem ponderação por postos ou volume vendido, e incluem todas as UFs da região independentemente do filtro de UFs. No modo Todos da dispersão, cada ponto é um par UF × semana; a correlação e a regressão permanecem disponíveis na análise individual por UF.')
-        st.caption('Os marcos geopolíticos reproduzem as datas e os rótulos fornecidos na imagem de referência; são anotações de contexto, sem validação histórica nesta implementação e sem inferência causal.')
-        st.caption('Fontes: ANP (preços de combustíveis) e EIA (Brent). Os números exibidos são calculados dos CSVs e podem diferir do protótipo.')
-    with st.expander('⇩ Dados filtrados e download'):
-        st.dataframe(filtered, hide_index=True)
-        for label, frame, filename in [('Combustíveis por UF', filtered, 'combustiveis_filtrados.csv'), ('Referência Brasil', national, 'brasil_filtrado.csv'), ('Petróleo Brent', oil, 'brent_filtrado.csv')]:
-            st.download_button(f'Baixar {label} (CSV)', frame.to_csv(index=False, sep=';', decimal=',').encode('utf-8-sig'), file_name=filename, mime='text/csv', key=filename)
-    st.caption(f'Fontes: ANP e EIA | Projeto Integrador SENAC • Bases locais atualizadas em {pd.Timestamp(max((DATA_DIR / name).stat().st_mtime for name in FILES), unit="s").strftime("%d/%m/%Y")}')
+            grouped=grouped.assign(Região=grouped.UF.map(UF_REGION))
+            plot=alt.Chart(grouped).mark_bar(cornerRadiusEnd=3).encode(
+                x=alt.X(f'{metric}:Q',title='R$/litro' if metric=='Média' else 'Variação (%)',scale=alt.Scale(zero=metric=='Média')),
+                y=alt.Y('UF:N',sort=alt.SortField(field=metric,order='descending'),title=None),
+                color=alt.Color('Região:N',scale=alt.Scale(domain=list(REGION_COLORS),range=list(REGION_COLORS.values())),legend=alt.Legend(orient='bottom')),
+                tooltip=['UF:N','Região:N',alt.Tooltip(f'{metric}:Q',format='.2f')])
+            st.altair_chart(chart_base(plot,max(260,len(grouped)*20)),use_container_width=True,theme=None)
 
+with st.container(border=True):
+    st.subheader('3. Cenário internacional: petróleo Brent')
+    c1,c2=st.columns([2,1])
+    oil_mode=c1.radio('Visualização',['Brent (US$/barril)',CHANGE],horizontal=True,key='oil_mode')
+    smooth=c2.checkbox('Sobrepor média móvel de 4 semanas',value=False)
+    if o.empty:st.info('Sem observações do Brent no período.')
+    else:
+        oil=o.sort_values('Semana').copy()
+        oil[CHANGE]=(oil[config.COL_BRENT]/oil[config.COL_BRENT].iloc[0]-1)*100
+        latest=oil.iloc[-1]
+        a1,a2=st.columns(2)
+        a1.metric('Última cotação',f'US$ {fmt(latest[config.COL_BRENT])}')
+        a2.metric('Variação no período',f'{fmt(latest[CHANGE])}%')
+        y=config.COL_BRENT if oil_mode.startswith('Brent') else CHANGE
+        base=alt.Chart(oil).mark_line(point=True,color='#57C9FF',strokeWidth=2.5).encode(
+            x=alt.X('Semana:T',title='Semanas',axis=alt.Axis(format='%b/%Y',tickCount='month')),
+            y=alt.Y(f'{y}:Q',title='US$/barril' if y==config.COL_BRENT else '%',scale=alt.Scale(zero=False)),
+            tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),alt.Tooltip(f'{y}:Q',format='.2f')])
+        if smooth:
+            rolling=oil.set_index('Semana')[y].rolling('28D',min_periods=4).mean().reset_index(name='Média móvel')
+            base=base+alt.Chart(rolling).mark_line(color='#FFC267',strokeDash=[6,4]).encode(x='Semana:T',y='Média móvel:Q')
+        st.altair_chart(chart_base(marks(base,start,end,show_events),340),use_container_width=True,theme=None)
 
-if __name__ == '__main__':
-    main()
+with st.container(border=True):
+    st.subheader('4. Relação estatística: Brent × preço dos combustíveis')
+
+    # O modo Brasil reproduz a análise nacional da imagem original.
+    # A seleção de uma UF utiliza os preços estaduais da ANP.
+    c_uf, c_fuel, c_all = st.columns([2.2, 2.2, 1.2])
+    uf_options = ['Brasil (média nacional)'] + ufs
+    selected_uf = c_uf.selectbox('Estado / abrangência', uf_options, key='d4_uf')
+    fuel = c_fuel.selectbox('Combustível', fuels, key='d4_fuel')
+
+    if 'd4_all' not in st.session_state:
+        st.session_state.d4_all = False
+    def activate_all_ufs():
+        st.session_state.d4_all = not st.session_state.d4_all
+    c_all.button('Todas as 27 UFs' if not st.session_state.d4_all else 'Voltar à seleção',
+                 on_click=activate_all_ufs, key='d4_all_button')
+    all_mode = st.session_state.d4_all
+
+    st.caption('Cada ponto é uma semana com observação válida nas duas bases: a cotação do Brent '
+               '(sexta-feira) é associada à semana ANP (domingo a sábado) que a contém. '
+               'Sem interpolação nem preenchimento.')
+
+    # Usa a mesma regra de pareamento da versão original.
+    # Ao contrário do gráfico anterior, o recorte temporal é aplicado antes da regressão.
+    oil_weeks = o[['Semana', config.COL_BRENT]].drop_duplicates('Semana')
+    if selected_uf == 'Brasil (média nacional)':
+        selected_source = b[b['Combustível'] == fuel][['Semana', PRICE]].copy()
+    else:
+        selected_source = e[(e['Combustível'] == fuel) & (e['UF'] == selected_uf)][['Semana', PRICE]].copy()
+    selected_pairs = (selected_source.merge(oil_weeks, on='Semana', how='inner', validate='one_to_one')
+                      .dropna(subset=[PRICE, config.COL_BRENT]).sort_values('Semana'))
+    regression = an.regressao(selected_pairs[config.COL_BRENT], selected_pairs[PRICE]) if not selected_pairs.empty else None
+
+    # Indicadores exatamente acima do gráfico, como no dashboard original.
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric('Coef. angular (R/l por US$ 1)', fmt(regression['slope'], 4) if regression else '—',
+              help='Inclinação da regressão linear simples: variação em R$/litro associada a US$ 1 no Brent.')
+    m2.metric('Intercepto (R$/l)', fmt(regression['intercept'], 3) if regression else '—',
+              help='Valor estimado do preço do combustível quando Brent = 0; não é previsão realista.')
+    m3.metric('R²', fmt(regression['r2'], 3) if regression else '—',
+              help='Coeficiente de determinação da regressão linear simples.')
+    m4.metric('Correlação de Pearson (r)', fmt(regression['r'], 3) if regression else '—',
+              help='Intensidade e direção da associação linear, sem inferência de causalidade.')
+    m5.metric('Semanas (n)', str(regression['n']) if regression else str(len(selected_pairs)))
+
+    if all_mode:
+        st.info('Exibindo as 27 UFs no mesmo gráfico. Os cinco indicadores acima continuam '
+                'referentes à abrangência escolhida no filtro, evitando calcular uma regressão '
+                'que trate observações estaduais da mesma semana como independentes.')
+        source = e[e['Combustível'] == fuel][['Semana', 'UF', PRICE]].copy()
+        pairs = source.merge(oil_weeks, on='Semana', how='inner', validate='many_to_one')
+    else:
+        pairs = selected_pairs.copy()
+        pairs['UF'] = 'Brasil' if selected_uf.startswith('Brasil') else selected_uf
+
+    if pairs.empty:
+        st.warning('Não há semanas com observações pareadas para essa seleção.')
+    else:
+        # Cores e nomes das quatro fases são preservados do gráfico original.
+        # Em "Todas as UFs", os símbolos distinguem as UFs, sem perder a legenda por fase.
+        pairs = pairs.rename(columns={'Semana': 'Data inicial'})
+        pairs['Data Brent'] = pairs['Data inicial'] + pd.Timedelta(days=5)
+        pairs['Data final'] = pairs['Data inicial'] + pd.Timedelta(days=6)
+        phases, phase_names = an.fases_conflito(pairs['Data Brent'])
+        pairs['Fase'] = phases
+        phase_colors = ['#7F8C8D', '#6A1B9A', '#BF360C', '#263238']
+        fig = go.Figure()
+        symbols = ['circle', 'square', 'diamond', 'cross', 'x', 'triangle-up', 'triangle-down',
+                   'triangle-left', 'triangle-right', 'star', 'hexagon', 'pentagon']
+        symbol_map = {state: symbols[i % len(symbols)] for i, state in enumerate(ufs)}
+        for phase, color in zip(phase_names, phase_colors):
+            group = pairs[pairs['Fase'] == phase]
+            if group.empty:
+                continue
+            fig.add_trace(go.Scatter(
+                x=group[config.COL_BRENT], y=group[PRICE], mode='markers', name=phase,
+                marker=dict(size=9 if not all_mode else 7, color=color, opacity=.85,
+                            symbol=[symbol_map.get(u, 'circle') for u in group['UF']],
+                            line=dict(width=.5, color='white')),
+                customdata=group[['UF', 'Data final']].assign(
+                    **{'Data final': group['Data final'].dt.strftime('%d/%m/%Y')}).to_numpy(),
+                hovertemplate='UF: %{customdata[0]}<br>Semana até %{customdata[1]}'
+                              '<br>Brent: US$ %{x:.2f}<br>' + fuel + ': R$ %{y:.2f}/l<extra></extra>'
+            ))
+        if regression is not None:
+            xx = np.array([regression['x_min'], regression['x_max']])
+            fig.add_trace(go.Scatter(
+                x=xx, y=regression['intercept'] + regression['slope'] * xx,
+                mode='lines', name='Regressão linear',
+                line=dict(color=config.CORES_COMBUSTIVEIS[fuel], width=3), hoverinfo='skip'))
+            annotation = (f'<b>{an.equacao(regression)}</b><br>'
+                          f'R² = {an.fmt(regression["r2"], 3)} · r = {an.fmt(regression["r"], 3)}<br>'
+                          f'n = {regression["n"]} semanas')
+            fig.add_annotation(x=.02, y=.98, xref='paper', yref='paper', text=annotation,
+                               showarrow=False, align='left', xanchor='left', yanchor='top',
+                               bgcolor='rgba(255,255,255,.88)', bordercolor='rgba(0,0,0,.3)',
+                               borderwidth=1, font=dict(size=12, color='#222'))
+        label = 'nacional' if selected_uf.startswith('Brasil') else f'({selected_uf})'
+        fig.update_layout(
+            height=500, template='plotly_dark', paper_bgcolor='#18131e', plot_bgcolor='#18131e',
+            font=dict(family='Inter, Segoe UI, Arial, sans-serif', size=13),
+            separators=',.', margin=dict(t=30, l=10, r=10, b=10), hovermode='closest',
+            xaxis_title='Preço do petróleo Brent (US$ por barril)',
+            yaxis_title=f'{fuel} – preço médio {label} (R$/litro)',
+            legend=dict(orientation='h', y=-.22, x=0, title_text=''))
+        fig.update_xaxes(tickprefix='US$ ', gridcolor='rgba(128,128,128,.2)')
+        fig.update_yaxes(tickprefix='R$ ', tickformat='.2f', gridcolor='rgba(128,128,128,.2)')
+        st.plotly_chart(fig, use_container_width=True)
+    st.caption('Fonte: ANP e EIA. Associação estatística não demonstra causalidade. '
+               'A linha de regressão e os indicadores correspondem à abrangência selecionada.')
+
+with st.expander('▣ Metodologia e fontes'):
+    st.markdown('**Fontes:** ANP, preços semanais nacionais e estaduais; EIA, Brent semanal. As datas ANP são semanas iniciadas aos domingos; cada cotação semanal do Brent é pareada com a semana ANP que a contém. Não há interpolação de semanas ausentes. A média regional é simples entre UFs disponíveis; o ranking por preço usa a média semanal no período filtrado. Os indicadores nacionais utilizam a base Brasil, não a média de estados.')
+    st.markdown('**Marcos geopolíticos:** as datas e descrições foram fornecidas no escopo do projeto; são anotações contextuais que exigem validação documental antes da publicação. Correlação não prova causalidade.')
+    for warning in warnings:st.warning(warning)
+with st.expander('⇩ Dados filtrados e download'):
+    filtered=e[e.UF.isin(selected_ufs)]
+    st.dataframe(filtered,hide_index=True,use_container_width=True)
+    for label,frame in [('estados',filtered),('brasil',b),('brent',o)]:
+        st.download_button(f'Baixar {label}.csv',frame.to_csv(index=False,sep=';',decimal=',').encode('utf-8-sig'),file_name=f'{label}_filtrado.csv',mime='text/csv')
+st.caption('Fontes: ANP e EIA | Projeto Integrador SENAC | Dados calculados das bases locais, sem valores simulados')

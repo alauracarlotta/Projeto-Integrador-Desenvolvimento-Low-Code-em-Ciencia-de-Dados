@@ -15,15 +15,16 @@ ARQ_BRENT = "Base_Brent_Weekly_2026_Tratada.csv"
 ARQUIVOS = (ARQ_BRASIL, ARQ_ESTADOS, ARQ_BRENT)
 
 # Pastas onde as bases tratadas são procuradas, em ordem de prioridade.
-# 1) variável de ambiente PI_BASES_DIR (se definida)  2) bases tratadas do projeto
-# 3) subpasta "bases" ao lado do app  4) a própria pasta do app
+# 1) variável PI_BASES_DIR, se definida  2) data/processed do projeto
+# 3) bases legadas do projeto  4) subpasta "bases" e pasta do app
 PASTA_BASES_PROJETO = PASTA_APP.parents[1] / "00.Bases" / "01.Tratadas"
+PASTA_BASES_PROCESSADAS = PASTA_APP / "data" / "processed"
 
 
 def pastas_candidatas() -> list[Path]:
     env = os.environ.get("PI_BASES_DIR")
     cand = [Path(env).expanduser()] if env else []
-    cand += [PASTA_BASES_PROJETO, PASTA_APP / "bases", PASTA_APP]
+    cand += [PASTA_BASES_PROCESSADAS, PASTA_BASES_PROJETO, PASTA_APP / "data" / "processed", PASTA_APP]
     return cand
 
 

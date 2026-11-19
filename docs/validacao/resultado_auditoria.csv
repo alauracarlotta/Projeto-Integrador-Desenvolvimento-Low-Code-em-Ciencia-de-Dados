@@ -1,0 +1,26 @@
+﻿base;teste;status;detalhe
+Brasil;avisos do carregador;PASSOU;nenhum
+Estados;avisos do carregador;PASSOU;nenhum
+Brent;avisos do carregador;PASSOU;nenhum
+Brasil;carregamento;PASSOU;117 registros
+Brasil;datas válidas;PASSOU;0
+Brasil;jan-set/2026;PASSOU;0 datas fora da janela
+Brasil;preços positivos;PASSOU;0
+Brasil;chaves únicas;PASSOU;0
+Brasil;meses encontrados;ATENÇÃO;2026-01, 2026-02, 2026-03, 2026-04, 2026-05, 2026-06, 2026-07, 2026-08, 2026-09
+Brasil;combustíveis encontrados;ATENÇÃO;Diesel S10, Etanol, Gasolina comum
+Estados;carregamento;PASSOU;3134 registros
+Estados;datas válidas;PASSOU;0
+Estados;jan-set/2026;PASSOU;0 datas fora da janela
+Estados;preços positivos;PASSOU;0
+Estados;chaves únicas;PASSOU;0
+Estados;meses encontrados;ATENÇÃO;2026-01, 2026-02, 2026-03, 2026-04, 2026-05, 2026-06, 2026-07, 2026-08, 2026-09
+Estados;UFs distintas;ATENÇÃO;27
+Estados;regiões distintas;ATENÇÃO;5
+Estados;combustíveis encontrados;ATENÇÃO;Diesel S10, Etanol, Gasolina comum
+Brent;carregamento;PASSOU;45 registros
+Brent;datas únicas;PASSOU;0
+Brent;datas em sexta-feira;PASSOU;0
+Brent;preços positivos;PASSOU;0
+Brent;semana ANP única;PASSOU;0
+ANP × EIA;pareamento;PASSOU;117 pares Brasil/combustível
