@@ -12,8 +12,10 @@ try:  # opcional: só usado para o p-valor
 except Exception:  # pragma: no cover
     _stats = None
 
-MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
-              "setembro", "outubro", "novembro", "dezembro"]
+MESES_NOME = [
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
+    "setembro", "outubro", "novembro", "dezembro"
+]
 
 
 # ---------------------------------------------------------------- formatação pt-BR
@@ -60,8 +62,7 @@ def kpis(df: pd.DataFrame, ref: pd.DataFrame) -> pd.DataFrame:
 def preco_por_regiao(est: pd.DataFrame, comb: str) -> pd.DataFrame:
     """Média simples dos preços médios dos estados de cada região, por semana (dados válidos de cada semana)."""
     d = est[est["Combustível"] == comb]
-    out = (d.groupby(["Data final", "Região"], as_index=False)
-             .agg(**{"Preço médio": ("Preço médio", "mean"), "Estados": ("Estado", "nunique")}))
+    out = (d.groupby(["Data final", "Região"], as_index=False).agg(**{"Preço médio": ("Preço médio", "mean"), "Estados": ("Estado", "nunique")}))
     out["Região"] = pd.Categorical(out["Região"], config.ORDEM_REGIOES, ordered=True)
     return out.sort_values(["Região", "Data final"]).reset_index(drop=True)
 
@@ -76,9 +77,11 @@ def ranking_ultimo_mes(est: pd.DataFrame, comb: str, n: int = 3):
     no_mes = est[est["Data inicial"].dt.to_period("M") == mes]
     semanas = sorted(no_mes["Data inicial"].unique())
     d = no_mes[no_mes["Combustível"] == comb]
-    g = (d.groupby(["Estado", "Região"], as_index=False)
-           .agg(**{"Preço médio": ("Preço médio", "mean"), "Semanas": ("Data final", "nunique")})
-           .sort_values("Preço médio").reset_index(drop=True))
+    g = (
+        d.groupby(["Estado", "Região"], as_index=False)
+        .agg(**{"Preço médio": ("Preço médio", "mean"), "Semanas": ("Data final", "nunique")})
+        .sort_values("Preço médio").reset_index(drop=True)
+    )
     if len(g) < 2 * n:
         return mes, semanas, g, None
     caros = g.tail(n).sort_values("Preço médio", ascending=False).assign(Grupo="Mais caros")
@@ -109,15 +112,16 @@ def alinhar_semanas(brasil: pd.DataFrame, brent: pd.DataFrame):
     Devolve (tabela longa por combustível, lista de datas do Brent sem semana correspondente).
     """
     semanas = (brasil[["Data inicial", "Data final"]].drop_duplicates().sort_values("Data inicial"))
-    b = pd.merge_asof(brent.sort_values("Data"), semanas, left_on="Data", right_on="Data inicial",
-                      direction="backward")
+    b = pd.merge_asof(brent.sort_values("Data"), semanas, left_on="Data", right_on="Data inicial", direction="backward")
     ok = b["Data final"].notna() & (b["Data"] <= b["Data final"])
     descartadas = list(b.loc[~ok, "Data"])
     b = b[ok]
     if b.duplicated("Data final").any():
         raise ValueError("Mais de uma observação do Brent cai na mesma semana ANP; alinhamento ambíguo.")
-    alin = b.merge(brasil[["Combustível", "Data inicial", "Data final", "Preço médio"]],
-                   on=["Data inicial", "Data final"], how="inner")
+    alin = b.merge(
+        brasil[["Combustível", "Data inicial", "Data final", "Preço médio"]],
+        on=["Data inicial", "Data final"], how="inner"
+    )
     alin = alin.rename(columns={"Data": "Data Brent"}).sort_values(["Combustível", "Data final"])
     return alin.reset_index(drop=True), descartadas
 
@@ -125,10 +129,12 @@ def alinhar_semanas(brasil: pd.DataFrame, brent: pd.DataFrame):
 def fases_conflito(datas: pd.Series) -> pd.Series:
     """Rótulo de fase (antes/depois de cada marco) para colorir os pontos do gráfico 4."""
     d1, d2, d3 = [m["data"] for m in config.MARCOS]
-    rot = [f"Antes do conflito (até {(d1 - pd.Timedelta(days=1)):%d/%m})",
-           f"Conflito, antes do bloqueio ({d1:%d/%m}–{(d2 - pd.Timedelta(days=1)):%d/%m})",
-           f"Bloqueio naval ({d2:%d/%m}–{(d3 - pd.Timedelta(days=1)):%d/%m})",
-           f"Persistência do bloqueio (a partir de {d3:%d/%m})"]
+    rot = [
+        f"Antes do conflito (até {(d1 - pd.Timedelta(days=1)):%d/%m})",
+        f"Conflito, antes do bloqueio ({d1:%d/%m}–{(d2 - pd.Timedelta(days=1)):%d/%m})",
+        f"Bloqueio naval ({d2:%d/%m}–{(d3 - pd.Timedelta(days=1)):%d/%m})",
+        f"Persistência do bloqueio (a partir de {d3:%d/%m})"
+    ]
     idx = np.select([datas < d1, datas < d2, datas < d3], [0, 1, 2], default=3)
     return pd.Series(np.array(rot)[idx], index=datas.index), rot
 
@@ -206,8 +212,10 @@ def conclusao(comb: str, res: dict[str, dict | None], alin: pd.DataFrame) -> str
 
     validos = {c: v for c, v in res.items() if v is not None}
     if len(validos) > 1:
-        partes = [f"{c}: r = {fmt(v['r'], 2)}, R² = {fmt(v['r2'], 2)}, {fmt_sinal(v['slope'] * 10, 3)} R$/l por +US$ 10"
-                  for c, v in validos.items()]
+        partes = [
+            f"{c}: r = {fmt(v['r'], 2)}, R² = {fmt(v['r2'], 2)}, {fmt_sinal(v['slope'] * 10, 3)} R$/l por +US$ 10"
+            for c, v in validos.items()
+        ]
         melhor = max(validos, key=lambda c: validos[c]["r2"])
         sinais = {c: v["r"] > 0 for c, v in validos.items()}
         comp = "**Comparação entre os combustíveis.** " + "; ".join(partes) + ". "
@@ -215,8 +223,10 @@ def conclusao(comb: str, res: dict[str, dict | None], alin: pd.DataFrame) -> str
         if len(set(sinais.values())) > 1:
             pos = [c for c, s in sinais.items() if s]
             neg = [c for c, s in sinais.items() if not s]
-            comp += (f"O sinal da associação difere: positivo para {', '.join(pos)} e negativo para "
-                     f"{', '.join(neg)}.")
+            comp += (
+                f"O sinal da associação difere: positivo para {', '.join(pos)} e negativo para "
+                f"{', '.join(neg)}."
+            )
         txt.append(comp.strip())
 
     brent_min, brent_max = alin[config.COL_BRENT].min(), alin[config.COL_BRENT].max()

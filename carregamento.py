@@ -54,8 +54,10 @@ def _datas_mdy(serie: pd.Series, coluna: str, nome: str) -> pd.Series:
 def _preparar_anp(df: pd.DataFrame, nome: str, chave: list[str]) -> tuple[pd.DataFrame, list[str]]:
     """Padronização comum às bases ANP (Brasil e Estados)."""
     avisos: list[str] = []
-    obrig = ["DATA INICIAL", "DATA FINAL", "PRODUTO", "NÚMERO DE POSTOS PESQUISADOS", "UNIDADE DE MEDIDA",
-             "PREÇO MÉDIO REVENDA", "PREÇO MÍNIMO REVENDA", "PREÇO MÁXIMO REVENDA"]
+    obrig = [
+        "DATA INICIAL", "DATA FINAL", "PRODUTO", "NÚMERO DE POSTOS PESQUISADOS", "UNIDADE DE MEDIDA",
+        "PREÇO MÉDIO REVENDA", "PREÇO MÍNIMO REVENDA", "PREÇO MÁXIMO REVENDA"
+    ]
     _exigir(df, obrig, nome)
     df = df.copy()
 

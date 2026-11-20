@@ -55,8 +55,10 @@ REGIOES_BRUTO = {
     "CENTRO-OESTE": "Centro-Oeste", "SUDESTE": "Sudeste", "SUL": "Sul",
 }
 ORDEM_REGIOES = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"]
-CORES_REGIOES = {"Norte": "#8E44AD", "Nordeste": "#E67E22", "Centro-Oeste": "#16A085",
-                 "Sudeste": "#2C3E50", "Sul": "#F1C40F"}
+CORES_REGIOES = {
+    "Norte": "#8E44AD", "Nordeste": "#E67E22", "Centro-Oeste": "#16A085",
+    "Sudeste": "#2C3E50", "Sul": "#F1C40F"
+}
 
 NOMES_UF = {
     "ACRE": "Acre", "ALAGOAS": "Alagoas", "AMAPA": "Amapá", "AMAZONAS": "Amazonas", "BAHIA": "Bahia",
@@ -80,22 +82,34 @@ UNIDADE_BRENT = "US$ por barril (Europe Brent Spot Price FOB, semanal)"
 DATA_BASE = pd.Timestamp("2026-02-28")   # início do conflito: referência das variações
 
 MARCOS = [
-    {"data": pd.Timestamp("2026-02-28"), "descricao": "Início do Conflito Irã vs EUA",
-     "cor": "#6A1B9A", "dash": "dash"},
-    {"data": pd.Timestamp("2026-04-13"), "descricao": "Início do Bloqueio Naval",
-     "cor": "#BF360C", "dash": "dot"},
-    {"data": pd.Timestamp("2026-08-30"), "descricao": "Persistência do Bloqueio Naval",
-     "cor": "#263238", "dash": "dashdot"},
+    {
+        "data": pd.Timestamp("2026-02-28"), "descricao": "Início do Conflito Irã vs EUA",
+        "cor": "#6A1B9A", "dash": "dash"
+    },
+    {
+        "data": pd.Timestamp("2026-04-13"), "descricao": "Início do Bloqueio Naval",
+        "cor": "#BF360C", "dash": "dot"
+    },
+    {
+        "data": pd.Timestamp("2026-08-30"), "descricao": "Persistência do Bloqueio Naval",
+        "cor": "#263238", "dash": "dashdot"
+    },
 ]
 
 # ---------------------------------------------------------------- Textos fixos do roteiro
 TXT_G1 = "Evolução do preço dos combustíveis a nível Brasil."
 PERGUNTA_G1 = "Esse comportamento de preço varia por região do Brasil?"
-TXT_G2 = ("Apesar de o preço médio dos combustíveis apresentar um comportamento semelhante ao observado "
-          "no cenário nacional, identificamos diferenças importantes entre as regiões. Destacamos também "
-          "os três estados com os menores preços e os três estados com os maiores preços.")
+TXT_G2 = (
+    "Apesar de o preço médio dos combustíveis apresentar um comportamento semelhante ao observado "
+    "no cenário nacional, identificamos diferenças importantes entre as regiões. Destacamos também "
+    "os três estados com os menores preços e os três estados com os maiores preços."
+)
 PERGUNTA_G2 = "As variações de preço ao longo do tempo têm relação com o preço do petróleo?"
-TXT_G3 = ("Conseguimos observar flutuações em momentos semelhantes entre o preço do Petróleo Brent "
-          "e os preços dos combustíveis no Brasil.")
-PERGUNTA_G3 = ("Qual é o incremento no preço dos combustíveis (etanol, gasolina e diesel) associado "
-               "à variação do preço do petróleo?")
+TXT_G3 = (
+    "Conseguimos observar flutuações em momentos semelhantes entre o preço do Petróleo Brent "
+    "e os preços dos combustíveis no Brasil."
+)
+PERGUNTA_G3 = (
+    "Qual é o incremento no preço dos combustíveis (etanol, gasolina e diesel) associado "
+    "à variação do preço do petróleo?"
+)
