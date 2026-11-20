@@ -34,6 +34,14 @@ REGION_COLORS={'Norte':'#27935C','Nordeste':'#E7B82D','Centro-Oeste':'#E58A38','
 FUEL_COLORS={'Gasolina comum':'#FF993D','Etanol':'#29D87C','Diesel S10':'#48A6FF'}
 EVENTS=[('2026-02-28','Início do conflito (EUA × Irã)','#B65AF0'),('2026-04-13','Início do bloqueio naval','#FF9700'),('2026-08-30','Persistência do bloqueio naval','#2586FF')]
 PRICE='Preço médio'; CHANGE='Variação acumulada (%)'
+MESES_PT_BR = (
+    "JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
+    "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"
+)
+
+
+def formatar_mes_ano(data):
+    return f"{MESES_PT_BR[data.month - 1]}/{data.year}"
 
 def fmt(v,n=2):
     return an.fmt(float(v),n) if pd.notna(v) else '—'
@@ -100,7 +108,7 @@ with st.container(border=True):
     selected_fuels=c1.multiselect('Combustível',fuels,key='fuels')
     # Limites Jan–Set são a janela do projeto; dados não existentes nunca são interpolados.
     months=[pd.Period(f'2026-{m:02d}') for m in range(1,10)]
-    selected_period=c2.select_slider('Período',options=months,value=(months[0],months[-1]),format_func=lambda x:x.strftime('%m/%Y'))
+    selected_period = c2.select_slider('Período',options=months,value=(months[0], months[-1]),format_func=formatar_mes_ano)
     selected_ufs=c3.multiselect('UFs selecionadas',ufs,key='ufs')
     c4.button('Todas as 27 UFs',on_click=select_all)
     c4.button('Restaurar seleção',on_click=reset)
@@ -129,9 +137,36 @@ with indicators:
 
 with st.container(border=True):
     st.markdown('**Questões da análise**')
-    cols=st.columns(4)
-    for col,title,question in zip(cols,['1. Cenário nacional','2. Diferenças regionais','3. Cenário internacional','4. Relação estatística'],['Como os preços evoluíram?','O comportamento é uniforme?','Como o Brent se comportou?','Há associação com o Brent?']):
-        col.markdown(f'**{title}**  \n{question}')
+
+    cols = st.columns(4)
+
+    titles = [
+        '1. Cenário nacional',
+        '2. Diferenças regionais',
+        '3. Cenário internacional',
+        '4. Relação estatística'
+    ]
+
+    questions = [
+        'Como os preços evoluíram?',
+        'O comportamento é uniforme?',
+        'Como o Brent se comportou?',
+        'Há associação com o Brent?'
+    ]
+
+    for col, title, question in zip(cols, titles, questions):
+        col.markdown(
+            f"""
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+                {title}
+            </div>
+            <div style="font-style: italic; padding-bottom: 10px;">
+                {question}
+            </div>
+            <div></div>
+            """,
+            unsafe_allow_html=True
+        )
 
 with st.container(border=True):
     st.subheader('1. Cenário nacional: evolução semanal dos preços')
@@ -156,28 +191,67 @@ with right,st.container(border=True):
     st.markdown('#### 2.2 Comparação estadual')
     a1,a2,a3=st.columns(3)
     rank_mode=a1.selectbox('Indicador',['Preço médio (R$/litro)','Variação no período (%)'],key='rank_mode')
-    rank_scope=a2.selectbox('Visualização',['3 mais caros e 3 mais baratos','UFs selecionadas','Todas as 27 UFs'],key='rank_scope')
+    rank_scope = a2.selectbox('Visualização', ['3 mais caros e 3 mais baratos','UFs selecionadas','Todas as 27 UFs','Por região'], key='rank_scope', help='A opção "UFs selecionadas" utiliza os estados definidos no filtro global, no topo do dashboard.')
     rank_fuel=a3.selectbox('Combustível',selected_fuels if selected_fuels else fuels,key='rank_fuel')
+    selected_region = None
+    if rank_scope == 'Por região':
+        selected_region = st.selectbox( 'Região', list(REGION_COLORS.keys()), key='selected_region', help='Exibe todas as UFs da região escolhida, independentemente do filtro global de UFs.')
     state=e[e['Combustível']==rank_fuel].sort_values('Semana')
     if state.empty:st.info('Sem dados estaduais.')
     else:
         grouped=state.groupby('UF',as_index=False).agg(**{'Média':(PRICE,'mean'),'Inicial':(PRICE,'first'),'Final':(PRICE,'last'),'Semanas':('Semana','nunique')})
         grouped['Variação (%)']=(grouped['Final']/grouped['Inicial']-1)*100
         metric='Média' if rank_mode.startswith('Preço') else 'Variação (%)'
-        if rank_scope=='UFs selecionadas':grouped=grouped[grouped.UF.isin(selected_ufs)]
-        if rank_scope.startswith('3 mais'):
-            ordered=grouped.sort_values([metric,'UF'])
-            grouped=pd.concat([ordered.head(3),ordered.tail(3)]).drop_duplicates('UF')
-            st.caption('Extremos entre todas as UFs: mais caros/baratos por preço ou maiores altas/menores variações em %.')
+        if rank_scope == 'UFs selecionadas':
+            grouped = grouped[grouped['UF'].isin(selected_ufs)]
+        elif rank_scope == 'Por região':
+            region_ufs = [
+                uf for uf, region in UF_REGION.items()
+                if region == selected_region
+            ]
+            grouped = grouped[grouped['UF'].isin(region_ufs)]
+            st.caption(
+                f'Exibindo todas as UFs da região {selected_region} '
+                f'({len(grouped)} UFs com dados disponíveis). '
+                'Esta visualização é independente do filtro global de UFs.'
+            )
+        elif rank_scope.startswith('3 mais'):
+            ordered = grouped.sort_values([metric, 'UF'])
+            menores = ordered.head(3).copy()
+            maiores = ordered.tail(3).copy()
+            menores['Grupo'] = '3 menores valores'
+            maiores['Grupo'] = '3 maiores valores'
+            grouped = pd.concat([maiores, menores]).drop_duplicates('UF')
+            if metric == 'Média':
+                st.caption('Comparação entre as 3 UFs com maiores e menores preços médios.')
+            else:
+                st.caption('Comparação entre as 3 UFs com maiores e menores variações percentuais.')
+
         if grouped.empty:st.info('Selecione ao menos uma UF com dados.')
         else:
-            grouped=grouped.assign(Região=grouped.UF.map(UF_REGION))
-            plot=alt.Chart(grouped).mark_bar(cornerRadiusEnd=3).encode(
-                x=alt.X(f'{metric}:Q',title='R$/litro' if metric=='Média' else 'Variação (%)',scale=alt.Scale(zero=metric=='Média')),
+            grouped = grouped.assign(Região=grouped.UF.map(UF_REGION))
+            if rank_scope.startswith('3 mais'):
+                color_encoding = alt.Color(
+                    'Grupo:N',
+                    scale=alt.Scale(
+                        domain=['3 maiores valores', '3 menores valores'],
+                        range=['#D94A55', '#27AE60']
+                    ),
+                    legend=alt.Legend(
+                        title='Classificação',
+                        orient='bottom'
+                    )
+                )
+            else:
+                color_encoding = alt.Color('Região:N', scale=alt.Scale(domain=list(REGION_COLORS), range=list(REGION_COLORS.values())), legend=alt.Legend(orient='bottom'))
+            plot = alt.Chart(grouped).mark_bar(cornerRadiusEnd=3
+            ).encode(
+                x=alt.X(f'{metric}:Q',title='R$/litro' if metric == 'Média' else 'Variação (%)',scale=alt.Scale(zero=metric == 'Média')),
                 y=alt.Y('UF:N',sort=alt.SortField(field=metric,order='descending'),title=None),
-                color=alt.Color('Região:N',scale=alt.Scale(domain=list(REGION_COLORS),range=list(REGION_COLORS.values())),legend=alt.Legend(orient='bottom')),
-                tooltip=['UF:N','Região:N',alt.Tooltip(f'{metric}:Q',format='.2f')])
-            st.altair_chart(chart_base(plot,max(260,len(grouped)*20)),use_container_width=True,theme=None)
+                color=color_encoding,
+                tooltip=['UF:N','Região:N',alt.Tooltip(f'{metric}:Q', format='.2f')]
+            )
+            st.altair_chart(chart_base(plot, max(260, len(grouped) * 20)),use_container_width=True,theme=None)
 
 with st.container(border=True):
     st.subheader('3. Cenário internacional: petróleo Brent')
