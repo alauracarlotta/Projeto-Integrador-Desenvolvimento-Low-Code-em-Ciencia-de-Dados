@@ -1,0 +1,18 @@
+[theme]
+base = "dark"
+
+# DARK MODE
+[theme.dark]
+primaryColor = "#A855F7"
+backgroundColor = "#110E16"
+secondaryBackgroundColor = "#241B2B"
+textColor = "#F6F1F8"
+borderColor = "#574560"
+
+# LIGHT MODE
+[theme.light]
+primaryColor = "#7C3AED"
+backgroundColor = "#F8F6FA"
+secondaryBackgroundColor = "#EDE7F3"
+textColor = "#241B2B"
+borderColor = "#D8CDDF"

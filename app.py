@@ -13,17 +13,95 @@ import carregamento as cg
 import analises as an
 
 st.set_page_config(page_title='Instabilidade geopolítica | SENAC', page_icon='⛽', layout='wide')
-st.markdown('''<style>
-.stApp{background:#110e16;color:#f6f1f8}.block-container{max-width:1540px;padding-top:1.1rem}
-[data-testid="stVerticalBlockBorderWrapper"]>div{border-color:#665073!important;border-radius:13px;background:#18131e}
-[data-testid="stMetric"]{background:#241b2b;border:1px solid #574560;border-radius:10px;padding:12px}
-[data-testid="stMetricValue"]{color:#f9f4ff;font-size:1.75rem}
-[data-testid="stExpander"]{background:#21182a;border-color:#654875}
-.stButton button{background:#34203f;color:#f8efff;border:1px solid #9b60b4;width:100%}
-[data-baseweb="tag"]{background-color:#a73753!important}
-section[data-testid="stSidebar"]{display:none}
-h1{font-size:2.0rem!important}h3{font-size:1.25rem!important}
-</style>''', unsafe_allow_html=True)
+st.markdown('''
+    <style>
+
+        .block-container {
+            max-width: 1540px;
+            padding-top: 1.1rem;
+        }
+
+        [data-testid="stVerticalBlockBorderWrapper"] > div {
+            border-radius: 13px;
+        }
+
+        [data-testid="stMetric"] {
+            background-color: var(--secondary-background-color);
+            border: 1px solid var(--border-color, #574560);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        [data-testid="stMetricLabel"],
+        [data-testid="stMetricLabel"] p {
+            color: var(--text-color) !important;
+        }
+
+        [data-testid="stMetricValue"] {
+            color: var(--text-color);
+            font-size: 1.75rem;
+        }
+
+        [data-testid="stExpander"] {
+            border-radius: 10px;
+        }
+
+        .stButton button {
+            width: 100%;
+        }
+
+        section[data-testid="stSidebar"] {
+            display: none;
+        }
+
+        h1 {
+            font-size: 2rem !important;
+        }
+
+        h3 {
+            font-size: 1.25rem !important;
+        }
+
+        /* Legendas responsivas dos gráficos */
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px 16px;
+            width: 100%;
+            padding: 8px 0 16px;
+            box-sizing: border-box;
+        }
+
+        .chart-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            color: var(--text-color);
+        }
+
+        .chart-legend-dot {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .chart-legend-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-color);
+        }
+
+    </style>
+    ''', unsafe_allow_html=True
+)
 
 ROOT=Path(__file__).resolve().parent
 UF_SIGLAS={'Acre':'AC','Alagoas':'AL','Amapá':'AP','Amazonas':'AM','Bahia':'BA','Ceará':'CE','Distrito Federal':'DF','Espírito Santo':'ES','Goiás':'GO','Maranhão':'MA','Mato Grosso':'MT','Mato Grosso do Sul':'MS','Minas Gerais':'MG','Pará':'PA','Paraíba':'PB','Paraná':'PR','Pernambuco':'PE','Piauí':'PI','Rio de Janeiro':'RJ','Rio Grande do Norte':'RN','Rio Grande do Sul':'RS','Rondônia':'RO','Roraima':'RR','Santa Catarina':'SC','São Paulo':'SP','Sergipe':'SE','Tocantins':'TO'}
@@ -46,11 +124,12 @@ def formatar_mes_ano(data):
 def fmt(v,n=2):
     return an.fmt(float(v),n) if pd.notna(v) else '—'
 
-def chart_base(chart,height=320):
-    return (chart.properties(height=height).configure(background='#18131e')
+def chart_base(chart, height=320):
+    return (
+        chart
+        .properties(height=height)
         .configure_view(stroke=None)
-        .configure_axis(labelColor='#E5DDEC',titleColor='#E5DDEC',gridColor='#392D41',domainColor='#705D79')
-        .configure_legend(labelColor='#E5DDEC',titleColor='#E5DDEC'))
+    )
 
 def marks(chart,begin,end,enabled):
     if not enabled:return chart
@@ -61,12 +140,60 @@ def marks(chart,begin,end,enabled):
             chart=chart+line
     return chart
 
+def render_legend(items, title=None):
+    legend_items = "".join(
+        f'''
+        <span class="chart-legend-item">
+            <span class="chart-legend-dot"
+                style="background-color: {color};">
+            </span>
+            <span>{label}</span>
+        </span>
+        '''
+        for label, color in items.items()
+    )
+
+    legend_title = (
+        f'<div class="chart-legend-title">{title}</div>'
+        if title else ""
+    )
+
+    st.markdown(
+        f'''
+        {legend_title}
+        <div class="chart-legend">
+            {legend_items}
+        </div>
+        ''',
+        unsafe_allow_html=True
+    )
+
 def line_chart(df,y,colorfield,domain,colors,begin,end,events, ytitle, height=315):
-    base=alt.Chart(df).mark_line(point=alt.OverlayMarkDef(size=28),strokeWidth=2).encode(
-        x=alt.X('Semana:T',title='Semanas',axis=alt.Axis(format='%b/%Y',tickCount='month')),
-        y=alt.Y(f'{y}:Q',title=ytitle,scale=alt.Scale(zero=False)),
-        color=alt.Color(f'{colorfield}:N',scale=alt.Scale(domain=domain,range=colors),legend=alt.Legend(orient='right',title=None)),
-        tooltip=[alt.Tooltip('Semana:T',format='%d/%m/%Y'),alt.Tooltip(f'{colorfield}:N'),alt.Tooltip(f'{y}:Q',format='.3f')])
+    base = alt.Chart(df).mark_line(
+        point=alt.OverlayMarkDef(size=28),
+        strokeWidth=2
+    ).encode(
+        x=alt.X(
+            'Semana:T',
+            title='Semanas',
+            axis=alt.Axis(format='%b/%Y', tickCount='month')
+        ),
+        y=alt.Y(
+            f'{y}:Q',
+            title=ytitle,
+            scale=alt.Scale(zero=False)
+        ),
+        color=alt.Color(
+            f'{colorfield}:N',
+            scale=alt.Scale(domain=domain, range=colors),
+            legend=None
+        ),
+        tooltip=[
+            alt.Tooltip('Semana:T', format='%d/%m/%Y'),
+            alt.Tooltip(f'{colorfield}:N'),
+            alt.Tooltip(f'{y}:Q', format='.3f')
+        ]
+    )
     return chart_base(marks(base,begin,end,events),height)
 
 @st.cache_data(show_spinner='Lendo e validando bases ANP/EIA…')
@@ -99,8 +226,23 @@ if 'fuels' not in st.session_state:st.session_state.fuels=fuels.copy()
 def select_all():st.session_state.ufs=ufs.copy()
 def reset():st.session_state.ufs=[u for u in DEFAULT if u in ufs]
 
-st.title('⛽ Instabilidade geopolítica e os preços dos combustíveis no Brasil')
-st.caption('Preços semanais de revenda por UF e petróleo Brent  •  Projeto Integrador SENAC  •  Jan/2026 a Set/2026')
+st.title(
+    "⛽ Instabilidade geopolítica e os preços dos combustíveis no Brasil",
+)
+
+st.caption(
+    "Preços semanais de revenda por UF e petróleo Brent "
+    "• Projeto Integrador SENAC • Jan/2026 a Set/2026",
+    help=(
+        "Para personalizar a aparência do dashboard, "
+        "clique nos três pontos (⋮) no canto superior direito "
+        "e selecione o tema desejado:\n\n"
+        "- ☀️ Light: tema claro.\n"
+        "- 🌙 Dark: tema escuro.\n"
+        "- 💻 System: tema do dispositivo."
+    )
+)
+
 indicators=st.container(border=True)
 with st.container(border=True):
     st.subheader('⚑ Filtros')
@@ -174,7 +316,11 @@ with st.container(border=True):
     else:
         d=b.sort_values('Semana').copy()
         fig=line_chart(d,PRICE,'Combustível',fuels,[FUEL_COLORS[f] for f in fuels],start,end,show_events,'R$/litro')
-        st.altair_chart(fig,use_container_width=True,theme=None)
+        st.altair_chart(fig,use_container_width=True,theme="streamlit")
+        render_legend({
+            fuel: FUEL_COLORS[fuel]
+            for fuel in fuels
+        })
 
 st.subheader('2. Diferenças regionais')
 left,right=st.columns(2)
@@ -185,7 +331,8 @@ with left,st.container(border=True):
     if region.empty:st.info('Sem dados regionais.')
     else:
         fig=line_chart(region,PRICE,'Região',list(REGION_COLORS),list(REGION_COLORS.values()),start,end,show_events,'Preço médio (R$/litro)',300)
-        st.altair_chart(fig,use_container_width=True,theme=None)
+        st.altair_chart(fig,use_container_width=True,theme="streamlit")
+        render_legend(REGION_COLORS, title='Região')
         st.caption('Média simples dos preços médios estaduais disponíveis em cada região. Não ponderada pelo número de postos.')
 with right,st.container(border=True):
     st.markdown('#### 2.2 Comparação estadual')
@@ -231,27 +378,72 @@ with right,st.container(border=True):
         else:
             grouped = grouped.assign(Região=grouped.UF.map(UF_REGION))
             if rank_scope.startswith('3 mais'):
+                legend_items = {
+                    '3 maiores valores': '#D94A55',
+                    '3 menores valores': '#27AE60'
+                }
+
+                legend_title = 'Classificação'
+
                 color_encoding = alt.Color(
                     'Grupo:N',
                     scale=alt.Scale(
-                        domain=['3 maiores valores', '3 menores valores'],
-                        range=['#D94A55', '#27AE60']
+                        domain=list(legend_items.keys()),
+                        range=list(legend_items.values())
                     ),
-                    legend=alt.Legend(
-                        title='Classificação',
-                        orient='bottom'
-                    )
+                    legend=None
                 )
+
             else:
-                color_encoding = alt.Color('Região:N', scale=alt.Scale(domain=list(REGION_COLORS), range=list(REGION_COLORS.values())), legend=alt.Legend(orient='bottom'))
-            plot = alt.Chart(grouped).mark_bar(cornerRadiusEnd=3
+                legend_items = {
+                    region: color
+                    for region, color in REGION_COLORS.items()
+                    if region in grouped['Região'].values
+                }
+
+                legend_title = 'Região'
+
+                color_encoding = alt.Color(
+                    'Região:N',
+                    scale=alt.Scale(
+                        domain=list(REGION_COLORS),
+                        range=list(REGION_COLORS.values())
+                    ),
+                    legend=None
+                )
+
+            plot = alt.Chart(grouped).mark_bar(
+                cornerRadiusEnd=3
             ).encode(
-                x=alt.X(f'{metric}:Q',title='R$/litro' if metric == 'Média' else 'Variação (%)',scale=alt.Scale(zero=metric == 'Média')),
-                y=alt.Y('UF:N',sort=alt.SortField(field=metric,order='descending'),title=None),
+                x=alt.X(
+                    f'{metric}:Q',
+                    title='R$/litro' if metric == 'Média' else 'Variação (%)',
+                    scale=alt.Scale(zero=metric == 'Média')
+                ),
+                y=alt.Y(
+                    'UF:N',
+                    sort=alt.SortField(
+                        field=metric,
+                        order='descending'
+                    ),
+                    title=None,
+                    axis=alt.Axis(labelOverlap=False)
+                ),
                 color=color_encoding,
-                tooltip=['UF:N','Região:N',alt.Tooltip(f'{metric}:Q', format='.2f')]
+                tooltip=[
+                    'UF:N',
+                    'Região:N',
+                    alt.Tooltip(f'{metric}:Q', format='.2f')
+                ]
             )
-            st.altair_chart(chart_base(plot, max(260, len(grouped) * 20)),use_container_width=True,theme=None)
+
+            st.altair_chart(
+                chart_base(plot, max(260, len(grouped) * 20)),
+                use_container_width=True,
+                theme="streamlit"
+            )
+
+            render_legend(legend_items, title=legend_title)
 
 with st.container(border=True):
     st.subheader('3. Cenário internacional: petróleo Brent')
@@ -274,7 +466,7 @@ with st.container(border=True):
         if smooth:
             rolling=oil.set_index('Semana')[y].rolling('28D',min_periods=4).mean().reset_index(name='Média móvel')
             base=base+alt.Chart(rolling).mark_line(color='#FFC267',strokeDash=[6,4]).encode(x='Semana:T',y='Média móvel:Q')
-        st.altair_chart(chart_base(marks(base,start,end,show_events),340),use_container_width=True,theme=None)
+        st.altair_chart(chart_base(marks(base,start,end,show_events),340),use_container_width=True,theme="streamlit")
 
 with st.container(border=True):
     st.subheader('4. Relação estatística: Brent × preço dos combustíveis')
@@ -366,26 +558,42 @@ with st.container(border=True):
                 x=xx, y=regression['intercept'] + regression['slope'] * xx,
                 mode='lines', name='Regressão linear',
                 line=dict(color=config.CORES_COMBUSTIVEIS[fuel], width=3), hoverinfo='skip'))
-            annotation = (f'<b>{an.equacao(regression)}</b><br>'
-                          f'R² = {an.fmt(regression["r2"], 3)} · r = {an.fmt(regression["r"], 3)}<br>'
-                          f'n = {regression["n"]} semanas')
-            fig.add_annotation(x=.02, y=.98, xref='paper', yref='paper', text=annotation,
-                               showarrow=False, align='left', xanchor='left', yanchor='top',
-                               bgcolor='rgba(255,255,255,.88)', bordercolor='rgba(0,0,0,.3)',
-                               borderwidth=1, font=dict(size=12, color='#222'))
+            annotation = (
+                f'<b>{an.equacao(regression)}</b><br>'
+                f'R² = {an.fmt(regression["r2"], 3)} · r = {an.fmt(regression["r"], 3)}<br>'
+                f'n = {regression["n"]} semanas')
+            fig.add_annotation(
+                x=.02, y=.98, xref='paper', yref='paper', text=annotation,
+                showarrow=False, align='left', xanchor='left', yanchor='top',
+                bgcolor='rgba(255,255,255,.88)', bordercolor='rgba(0,0,0,.3)',
+                borderwidth=1, font=dict(size=12, color='#222'))
         label = 'nacional' if selected_uf.startswith('Brasil') else f'({selected_uf})'
         fig.update_layout(
-            height=500, template='plotly_dark', paper_bgcolor='#18131e', plot_bgcolor='#18131e',
-            font=dict(family='Inter, Segoe UI, Arial, sans-serif', size=13),
-            separators=',.', margin=dict(t=30, l=10, r=10, b=10), hovermode='closest',
+            height=500,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(
+                family='Inter, Segoe UI, Arial, sans-serif',
+                size=13
+            ),
+            separators=',.',
+            margin=dict(t=30, l=10, r=10, b=10),
+            hovermode='closest',
             xaxis_title='Preço do petróleo Brent (US$ por barril)',
             yaxis_title=f'{fuel} – preço médio {label} (R$/litro)',
-            legend=dict(orientation='h', y=-.22, x=0, title_text=''))
+            legend=dict(
+                orientation='h',
+                y=-.22,
+                x=0,
+                title_text=''
+            )
+        )
         fig.update_xaxes(tickprefix='US$ ', gridcolor='rgba(128,128,128,.2)')
         fig.update_yaxes(tickprefix='R$ ', tickformat='.2f', gridcolor='rgba(128,128,128,.2)')
         st.plotly_chart(fig, use_container_width=True)
-    st.caption('Fonte: ANP e EIA. Associação estatística não demonstra causalidade. '
-               'A linha de regressão e os indicadores correspondem à abrangência selecionada.')
+    st.caption(
+        'Fonte: ANP e EIA. Associação estatística não demonstra causalidade. '
+        'A linha de regressão e os indicadores correspondem à abrangência selecionada.')
 
 with st.expander('▣ Metodologia e fontes'):
     st.markdown('**Fontes:** ANP, preços semanais nacionais e estaduais; EIA, Brent semanal. As datas ANP são semanas iniciadas aos domingos; cada cotação semanal do Brent é pareada com a semana ANP que a contém. Não há interpolação de semanas ausentes. A média regional é simples entre UFs disponíveis; o ranking por preço usa a média semanal no período filtrado. Os indicadores nacionais utilizam a base Brasil, não a média de estados.')
