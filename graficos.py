@@ -29,10 +29,7 @@ def eixo_meses_pt_br():
 
     return alt.Axis(
         tickCount="month",
-        labelExpr=(
-            f"[{meses}][month(datum.value)]"
-            " + '/' + year(datum.value)"
-        )
+        labelExpr=f"[{meses}][month(datum.value)]"
     )
 
 def marks(chart, begin, end, enabled):
@@ -82,7 +79,7 @@ def line_chart(
     ).encode(
         x=alt.X(
             "Semana:T",
-            title="Semanas",
+            title=f"Semanas ({config.ANO_PROJETO})",
             axis=eixo_meses_pt_br()
         ),
         y=alt.Y(
@@ -210,7 +207,7 @@ def grafico_brent(df, y, smooth, marcos, inicio, fim):
     ).encode(
         x=alt.X(
             "Semana:T",
-            title="Semanas",
+            title=f"Semanas ({config.ANO_PROJETO})",
             axis=eixo_meses_pt_br()
         ),
         y=alt.Y(
