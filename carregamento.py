@@ -4,11 +4,8 @@ Cada função devolve (DataFrame, avisos). Os avisos descrevem qualquer inconsis
 (linhas descartadas, datas fora do padrão etc.); nenhum valor é inventado ou preenchido.
 """
 from __future__ import annotations
-
 from pathlib import Path
-
 import pandas as pd
-
 import config
 
 
@@ -74,13 +71,16 @@ def _preparar_anp(df: pd.DataFrame, nome: str, chave: list[str]) -> tuple[pd.Dat
     if semanas_irreg:
         avisos.append(f"{nome}: {semanas_irreg} linha(s) com período diferente de 7 dias.")
 
-    for origem, destino in {"PREÇO MÉDIO REVENDA": "Preço médio",
+    for origem, destino in {"PREÇO MÉDIO REVENDA": config.COL_PRECO,
                             "PREÇO MÍNIMO REVENDA": "Preço mínimo (posto)",
                             "PREÇO MÁXIMO REVENDA": "Preço máximo (posto)",
                             "NÚMERO DE POSTOS PESQUISADOS": "Postos pesquisados"}.items():
         df[destino] = pd.to_numeric(df[origem], errors="coerce")
 
-    invalidos = df["Preço médio"].isna() | (df["Preço médio"] <= 0)
+    invalidos = (
+        df[config.COL_PRECO].isna()
+        | (df[config.COL_PRECO] <= 0)
+    )
     if invalidos.any():
         avisos.append(f"{nome}: {int(invalidos.sum())} linha(s) com preço médio ausente/não positivo descartada(s).")
         df = df[~invalidos]
@@ -101,11 +101,12 @@ def carregar_brasil(pasta: Path) -> tuple[pd.DataFrame, list[str]]:
     nome = "Base Brasil"
     df = _ler_csv(Path(pasta) / config.ARQ_BRASIL, sep=";")
     df, avisos = _preparar_anp(df, nome, ["Data final", "Combustível"])
-    cols = ["Combustível", "Data inicial", "Data final", "Preço médio",
+    cols = ["Combustível", "Data inicial", "Data final", config.COL_PRECO,
             "Preço mínimo (posto)", "Preço máximo (posto)", "Postos pesquisados"]
     out = df[cols].sort_values(["Combustível", "Data final"]).reset_index(drop=True)
     if out.empty:
         raise ErroDados(f"{nome}: nenhuma linha válida após o tratamento.")
+    out["Semana"] = out["Data inicial"]
     return out, avisos
 
 
@@ -122,16 +123,18 @@ def carregar_estados(pasta: Path) -> tuple[pd.DataFrame, list[str]]:
         df = df[~sem_regiao]
     df["ESTADO"] = df["ESTADO"].astype(str).str.strip().str.upper()
     df["Estado"] = df["ESTADO"].map(config.NOMES_UF).fillna(df["ESTADO"].str.title())
+    df["UF"] = df["Estado"].map(config.UF_SIGLAS)
 
     multi = df.groupby("Estado")["Região"].nunique()
     if (multi > 1).any():
         avisos.append(f"{nome}: estados associados a mais de uma região: {list(multi[multi > 1].index)}.")
 
-    cols = ["Combustível", "Estado", "Região", "Data inicial", "Data final", "Preço médio",
-            "Preço mínimo (posto)", "Preço máximo (posto)", "Postos pesquisados"]
+    cols = ["Combustível", "Estado", "Região", "Data inicial", "Data final", config.COL_PRECO,
+            "Preço mínimo (posto)", "Preço máximo (posto)", "Postos pesquisados", "UF"]
     out = df[cols].sort_values(["Combustível", "Estado", "Data final"]).reset_index(drop=True)
     if out.empty:
         raise ErroDados(f"{nome}: nenhuma linha válida após o tratamento.")
+    out["Semana"] = out["Data inicial"]
     return out, avisos
 
 
@@ -172,4 +175,57 @@ def carregar_brent(pasta: Path) -> tuple[pd.DataFrame, list[str]]:
     out = out.sort_values("Data").reset_index(drop=True)
     if out.empty:
         raise ErroDados(f"{nome}: nenhuma linha válida após o tratamento.")
+    out["Semana"] = out["Data"] - pd.to_timedelta(
+        (out["Data"].dt.dayofweek + 1) % 7,
+        unit="D"
+    )
     return out, avisos
+
+# ---------------------------------------------------------------- carregamento integrado
+
+def carregar_bases(
+    pasta: Path | str
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
+    """Carrega as três bases tratadas e consolida os avisos."""
+
+    pasta = Path(pasta)
+
+    brasil, avisos_brasil = carregar_brasil(pasta)
+    estados, avisos_estados = carregar_estados(pasta)
+    brent, avisos_brent = carregar_brent(pasta)
+
+    avisos = (
+        avisos_brasil
+        + avisos_estados
+        + avisos_brent
+    )
+
+    return brasil, estados, brent, avisos
+
+# ---------------------------------------------------------------- filtros
+
+def filtrar_bases(
+    brasil: pd.DataFrame,
+    estados: pd.DataFrame,
+    brent: pd.DataFrame,
+    inicio: pd.Timestamp,
+    fim: pd.Timestamp,
+    combustiveis: list[str]
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Filtra as bases pelo período e pelos combustíveis selecionados."""
+
+    brasil_filtrado = brasil[
+        brasil["Semana"].between(inicio, fim)
+        & brasil["Combustível"].isin(combustiveis)
+    ].copy()
+
+    estados_filtrados = estados[
+        estados["Semana"].between(inicio, fim)
+        & estados["Combustível"].isin(combustiveis)
+    ].copy()
+
+    brent_filtrado = brent[
+        brent["Semana"].between(inicio, fim)
+    ].copy()
+
+    return brasil_filtrado, estados_filtrados, brent_filtrado

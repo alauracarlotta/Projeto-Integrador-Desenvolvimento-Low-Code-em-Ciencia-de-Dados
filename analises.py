@@ -12,11 +12,6 @@ try:  # opcional: só usado para o p-valor
 except Exception:  # pragma: no cover
     _stats = None
 
-MESES_NOME = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
-    "setembro", "outubro", "novembro", "dezembro"
-]
-
 
 # ---------------------------------------------------------------- formatação pt-BR
 def fmt(x: float, casas: int = 2) -> str:
@@ -34,99 +29,179 @@ def fmt_sinal(x: float, casas: int = 2) -> str:
 
 
 # ---------------------------------------------------------------- Gráfico 1: KPIs nacionais
-def kpis(df: pd.DataFrame, ref: pd.DataFrame) -> pd.DataFrame:
-    """Indicadores por combustível no recorte `df`; a referência de 28/02 vem da base completa `ref`."""
+def kpis(df: pd.DataFrame) -> pd.DataFrame:
+    """Calcula os indicadores nacionais no período filtrado."""
+
+    preco = config.COL_PRECO
     linhas = []
+
     for comb in config.ORDEM_COMBUSTIVEIS:
-        d = df[df["Combustível"] == comb].sort_values("Data final")
+
+        d = (
+            df[df["Combustível"] == comb]
+            .sort_values("Semana")
+        )
+
         if d.empty:
             continue
-        r = ref[(ref["Combustível"] == comb) & (ref["Data final"] == config.DATA_BASE)]
-        base = float(r["Preço médio"].iloc[0]) if not r.empty else np.nan
-        atual = d.iloc[-1]
-        imax, imin = d["Preço médio"].idxmax(), d["Preço médio"].idxmin()
+
+        first, last = d.iloc[0], d.iloc[-1]
+
+        delta = (
+            (last[preco] / first[preco] - 1) * 100
+            if first[preco]
+            else np.nan
+        )
+
         linhas.append({
             "Combustível": comb,
-            "Semana mais recente": atual["Data final"],
-            "Preço atual": float(atual["Preço médio"]),
-            "Preço em 28/02": base,
-            "Variação desde 28/02 (%)": (atual["Preço médio"] / base - 1) * 100 if base == base else np.nan,
-            "Média do período": float(d["Preço médio"].mean()),
-            "Maior preço": float(d.loc[imax, "Preço médio"]), "Semana do maior": d.loc[imax, "Data final"],
-            "Menor preço": float(d.loc[imin, "Preço médio"]), "Semana do menor": d.loc[imin, "Data final"],
+            "Semana inicial": first["Semana"],
+            "Semana mais recente": last["Semana"],
+            "Preço atual": last[preco],
+            config.COL_VARIACAO: delta
         })
-    return pd.DataFrame(linhas)
+
+    return pd.DataFrame(
+        linhas,
+        columns=[
+            "Combustível",
+            "Semana inicial",
+            "Semana mais recente",
+            "Preço atual",
+            config.COL_VARIACAO
+        ]
+    )
 
 
 # ---------------------------------------------------------------- Gráfico 2: regiões e ranking
-def preco_por_regiao(est: pd.DataFrame, comb: str) -> pd.DataFrame:
-    """Média simples dos preços médios dos estados de cada região, por semana (dados válidos de cada semana)."""
-    d = est[est["Combustível"] == comb]
-    out = (d.groupby(["Data final", "Região"], as_index=False).agg(**{"Preço médio": ("Preço médio", "mean"), "Estados": ("Estado", "nunique")}))
-    out["Região"] = pd.Categorical(out["Região"], config.ORDEM_REGIOES, ordered=True)
-    return out.sort_values(["Região", "Data final"]).reset_index(drop=True)
+def preco_por_regiao(
+        est: pd.DataFrame,
+        comb: str
+    ) -> pd.DataFrame:
+        """Calcula a média simples dos preços estaduais por região e semana."""
+
+        preco = config.COL_PRECO
+
+        return (
+            est[est["Combustível"] == comb]
+            .groupby(["Semana", "Região"], as_index=False)[preco]
+            .mean()
+        )
 
 
-def ranking_ultimo_mes(est: pd.DataFrame, comb: str, n: int = 3):
-    """Três estados mais baratos e três mais caros no último mês/ano da base (mês da DATA INICIAL da semana).
+def ranking_estadual(
+    est: pd.DataFrame,
+    comb: str
+) -> pd.DataFrame:
+    """Calcula os indicadores estaduais no período selecionado."""
 
-    Devolve (periodo_mensal, semanas_incluidas, tabela_completa, top6 ou None).
-    O preço de cada estado é a média dos preços médios semanais das semanas do mês.
-    """
-    mes = est["Data inicial"].dt.to_period("M").max()
-    no_mes = est[est["Data inicial"].dt.to_period("M") == mes]
-    semanas = sorted(no_mes["Data inicial"].unique())
-    d = no_mes[no_mes["Combustível"] == comb]
-    g = (
-        d.groupby(["Estado", "Região"], as_index=False)
-        .agg(**{"Preço médio": ("Preço médio", "mean"), "Semanas": ("Data final", "nunique")})
-        .sort_values("Preço médio").reset_index(drop=True)
+    preco = config.COL_PRECO
+
+    state = (
+        est[est["Combustível"] == comb]
+        .sort_values("Semana")
     )
-    if len(g) < 2 * n:
-        return mes, semanas, g, None
-    caros = g.tail(n).sort_values("Preço médio", ascending=False).assign(Grupo="Mais caros")
-    baratos = g.head(n).assign(Grupo="Mais baratos")      # já em ordem crescente
-    return mes, semanas, g, pd.concat([caros, baratos], ignore_index=True)
+
+    grouped = state.groupby("UF", as_index=False).agg(
+        **{
+            "Média": (preco, "mean"),
+            "Inicial": (preco, "first"),
+            "Final": (preco, "last"),
+            "Semanas": ("Semana", "nunique")
+        }
+    )
+
+    grouped["Variação (%)"] = (
+        grouped["Final"] / grouped["Inicial"] - 1
+    ) * 100
+
+    return grouped
+
+def ranking_extremos(
+    df: pd.DataFrame,
+    metric: str,
+    n: int = 3
+) -> pd.DataFrame:
+    """Seleciona as UFs com maiores e menores valores."""
+
+    ordered = df.sort_values([metric, "UF"])
+
+    menores = ordered.head(n).copy()
+    maiores = ordered.tail(n).copy()
+
+    menores["Grupo"] = "3 menores valores"
+    maiores["Grupo"] = "3 maiores valores"
+
+    return (
+        pd.concat([maiores, menores])
+        .drop_duplicates("UF")
+    )
 
 
-def rotulo_mes(periodo: pd.Period) -> str:
-    return f"{MESES_NOME[periodo.month - 1]}/{periodo.year}"
+# ---------------------------------------------------------------- Gráfico 3: petróleo Brent
 
+def variacao_brent(df: pd.DataFrame) -> pd.DataFrame:
+    """Calcula a variação acumulada do Brent no período selecionado."""
 
-def variacao_por_estado(est: pd.DataFrame, comb: str, data_ref: pd.Timestamp, data_fim: pd.Timestamp) -> pd.DataFrame:
-    """Variação % do preço médio de cada estado entre duas semanas (função herdada do app de regiões)."""
-    d = est[est["Combustível"] == comb]
-    a = d[d["Data final"] == data_ref].set_index("Estado")["Preço médio"]
-    b = d[d["Data final"] == data_fim].set_index("Estado")["Preço médio"]
-    out = pd.DataFrame({"Preço inicial": a, "Preço final": b}).dropna()
-    out["Variação (R$/l)"] = out["Preço final"] - out["Preço inicial"]
-    out["Variação (%)"] = (out["Preço final"] / out["Preço inicial"] - 1) * 100
-    return out.sort_values("Variação (%)", ascending=False).reset_index()
+    oil = df.sort_values("Semana").copy()
 
+    preco = config.COL_BRENT
+    variacao = config.COL_VARIACAO
+
+    if oil.empty:
+        oil[variacao] = pd.Series(dtype=float)
+        return oil
+
+    oil[variacao] = (
+        oil[preco] / oil[preco].iloc[0] - 1
+    ) * 100
+
+    return oil
+
+def media_movel_brent(
+    df: pd.DataFrame,
+    coluna: str
+) -> pd.DataFrame:
+    """Calcula a média móvel do Brent em uma janela de quatro semanas."""
+
+    return (
+        df.sort_values("Semana")
+        .set_index("Semana")[coluna]
+        .rolling("28D", min_periods=4)
+        .mean()
+        .reset_index(name="Média móvel")
+    )
 
 # ---------------------------------------------------------------- Alinhamento Brasil × Brent
-def alinhar_semanas(brasil: pd.DataFrame, brent: pd.DataFrame):
-    """Associa cada observação do Brent (sexta-feira) à semana ANP (domingo–sábado) que a contém.
+def parear_semanas(
+    combustiveis: pd.DataFrame,
+    brent: pd.DataFrame,
+    validacao: str = "many_to_one"
+) -> pd.DataFrame:
+    """Pareia observações da ANP e da EIA pela semana de referência."""
 
-    Só ficam as semanas com observação válida nas duas bases; nada é preenchido ou interpolado.
-    Devolve (tabela longa por combustível, lista de datas do Brent sem semana correspondente).
-    """
-    semanas = (brasil[["Data inicial", "Data final"]].drop_duplicates().sort_values("Data inicial"))
-    b = pd.merge_asof(brent.sort_values("Data"), semanas, left_on="Data", right_on="Data inicial", direction="backward")
-    ok = b["Data final"].notna() & (b["Data"] <= b["Data final"])
-    descartadas = list(b.loc[~ok, "Data"])
-    b = b[ok]
-    if b.duplicated("Data final").any():
-        raise ValueError("Mais de uma observação do Brent cai na mesma semana ANP; alinhamento ambíguo.")
-    alin = b.merge(
-        brasil[["Combustível", "Data inicial", "Data final", "Preço médio"]],
-        on=["Data inicial", "Data final"], how="inner"
+    return (
+        combustiveis
+        .merge(
+            brent,
+            on="Semana",
+            how="inner",
+            validate=validacao
+        )
+        .dropna(
+            subset=[
+                config.COL_PRECO,
+                config.COL_BRENT
+            ]
+        )
+        .sort_values("Semana")
+        .reset_index(drop=True)
     )
-    alin = alin.rename(columns={"Data": "Data Brent"}).sort_values(["Combustível", "Data final"])
-    return alin.reset_index(drop=True), descartadas
 
 
-def fases_conflito(datas: pd.Series) -> pd.Series:
+def fases_conflito(
+        datas: pd.Series
+    ) -> tuple[pd.Series, list[str]]:
     """Rótulo de fase (antes/depois de cada marco) para colorir os pontos do gráfico 4."""
     d1, d2, d3 = [m["data"] for m in config.MARCOS]
     rot = [
@@ -137,6 +212,25 @@ def fases_conflito(datas: pd.Series) -> pd.Series:
     ]
     idx = np.select([datas < d1, datas < d2, datas < d3], [0, 1, 2], default=3)
     return pd.Series(np.array(rot)[idx], index=datas.index), rot
+
+def preparar_dispersao(
+        pairs: pd.DataFrame
+    ) -> tuple[pd.DataFrame, list[str]]:
+        """Prepara as datas e fases geopolíticas da dispersão."""
+
+        dados = pairs.copy()
+
+        dados["Data final"] = (
+            dados["Semana"] + pd.Timedelta(days=6)
+        )
+
+        fases, rotulos = fases_conflito(
+            dados["Data Brent"]
+        )
+
+        dados["Fase"] = fases
+
+        return dados, rotulos
 
 
 # ---------------------------------------------------------------- Regressão linear simples
@@ -162,13 +256,80 @@ def regressao(x: pd.Series, y: pd.Series) -> dict | None:
             "se_slope": float(se), "p": p, "x_min": float(x.min()), "x_max": float(x.max())}
 
 
-def regressoes(alin: pd.DataFrame) -> dict[str, dict | None]:
-    """Uma regressão independente por combustível: preço médio nacional (y) ~ Brent (x)."""
-    out = {}
-    for comb in config.ORDEM_COMBUSTIVEIS:
-        d = alin[alin["Combustível"] == comb]
-        out[comb] = regressao(d[config.COL_BRENT], d["Preço médio"]) if not d.empty else None
-    return out
+def tabela_regressoes(
+    dados: pd.DataFrame,
+    combustiveis: list[str]
+) -> pd.DataFrame:
+    """Calcula e organiza os resultados das regressões por combustível."""
+
+    linhas = []
+
+    for comb in combustiveis:
+
+        d = dados[dados["Combustível"] == comb]
+
+        resultado = regressao(
+            d[config.COL_BRENT],
+            d[config.COL_PRECO]
+        )
+
+        linhas.append({
+            "Combustível": comb,
+            "Coef. angular (R$/l por US$ 1)":
+                resultado["slope"] if resultado else None,
+            "Intercepto (R$/l)":
+                resultado["intercept"] if resultado else None,
+            "R²":
+                resultado["r2"] if resultado else None,
+            "r de Pearson":
+                resultado["r"] if resultado else None,
+            "p-valor":
+                resultado["p"] if resultado else None,
+            "n": len(d)
+        })
+
+    return pd.DataFrame(linhas)
+
+
+def tabela_dados_pareados(
+    dados: pd.DataFrame
+) -> pd.DataFrame:
+    """Organiza os dados semanais pareados entre ANP e Brent."""
+
+    tabela = (
+        dados.pivot(
+            index=[
+                "Semana",
+                "Data Brent",
+                config.COL_BRENT
+            ],
+            columns="Combustível",
+            values=config.COL_PRECO
+        )
+        .reset_index()
+        .sort_values("Semana")
+    )
+
+    tabela.columns.name = None
+
+    tabela["Data final"] = (
+        tabela["Semana"] + pd.Timedelta(days=6)
+    )
+
+    combustiveis_disponiveis = [
+        comb
+        for comb in config.ORDEM_COMBUSTIVEIS
+        if comb in tabela.columns
+    ]
+
+    colunas = [
+        "Data Brent",
+        "Data final",
+        config.COL_BRENT,
+        *combustiveis_disponiveis
+    ]
+
+    return tabela[colunas].reset_index(drop=True)
 
 
 def equacao(res: dict) -> str:

@@ -47,7 +47,11 @@ PRODUTOS = {
     "OLEO DIESEL S10": "Diesel S10",
 }
 ORDEM_COMBUSTIVEIS = ["Gasolina comum", "Etanol", "Diesel S10"]
-CORES_COMBUSTIVEIS = {"Gasolina comum": "#E4572E", "Etanol": "#2E9E5B", "Diesel S10": "#2B59C3"}
+CORES_COMBUSTIVEIS = {
+    "Gasolina comum": "#FF993D",
+    "Etanol": "#29D87C",
+    "Diesel S10": "#48A6FF",
+}
 
 # ---------------------------------------------------------------- Regiões
 REGIOES_BRUTO = {
@@ -56,8 +60,11 @@ REGIOES_BRUTO = {
 }
 ORDEM_REGIOES = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"]
 CORES_REGIOES = {
-    "Norte": "#8E44AD", "Nordeste": "#E67E22", "Centro-Oeste": "#16A085",
-    "Sudeste": "#2C3E50", "Sul": "#F1C40F"
+    "Norte": "#27935C",
+    "Nordeste": "#E7B82D",
+    "Centro-Oeste": "#E58A38",
+    "Sudeste": "#D95B5B",
+    "Sul": "#4385C6",
 }
 
 NOMES_UF = {
@@ -72,29 +79,108 @@ NOMES_UF = {
     "TOCANTINS": "Tocantins",
 }
 
+# ---------------------------------------------------------------- Unidades federativas
+
+UF_SIGLAS = {
+    "Acre": "AC",
+    "Alagoas": "AL",
+    "Amapá": "AP",
+    "Amazonas": "AM",
+    "Bahia": "BA",
+    "Ceará": "CE",
+    "Distrito Federal": "DF",
+    "Espírito Santo": "ES",
+    "Goiás": "GO",
+    "Maranhão": "MA",
+    "Mato Grosso": "MT",
+    "Mato Grosso do Sul": "MS",
+    "Minas Gerais": "MG",
+    "Pará": "PA",
+    "Paraíba": "PB",
+    "Paraná": "PR",
+    "Pernambuco": "PE",
+    "Piauí": "PI",
+    "Rio de Janeiro": "RJ",
+    "Rio Grande do Norte": "RN",
+    "Rio Grande do Sul": "RS",
+    "Rondônia": "RO",
+    "Roraima": "RR",
+    "Santa Catarina": "SC",
+    "São Paulo": "SP",
+    "Sergipe": "SE",
+    "Tocantins": "TO",
+}
+
+UFS_PADRAO = ["AM", "GO", "PE", "RS", "SP"]
+
+UFS_POR_REGIAO = {
+    "Norte": ["AC", "AP", "AM", "PA", "RO", "RR", "TO"],
+    "Nordeste": ["AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"],
+    "Centro-Oeste": ["DF", "GO", "MT", "MS"],
+    "Sudeste": ["ES", "MG", "RJ", "SP"],
+    "Sul": ["PR", "RS", "SC"],
+}
+
+UF_REGIAO = {
+    uf: regiao
+    for regiao, ufs in UFS_POR_REGIAO.items()
+    for uf in ufs
+}
+
 # ---------------------------------------------------------------- Brent
 MESES_PT = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6,
             "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
 COL_BRENT = "Brent (US$/barril)"
 UNIDADE_BRENT = "US$ por barril (Europe Brent Spot Price FOB, semanal)"
+COR_BRENT = "#57C9FF"
+COR_MEDIA_MOVEL_BRENT = "#FFC267"
 
 # ---------------------------------------------------------------- Marcos geopolíticos
 DATA_BASE = pd.Timestamp("2026-02-28")   # início do conflito: referência das variações
 
 MARCOS = [
     {
-        "data": pd.Timestamp("2026-02-28"), "descricao": "Início do Conflito Irã vs EUA",
-        "cor": "#6A1B9A", "dash": "dash"
+        "data": pd.Timestamp("2026-02-28"),
+        "descricao": "Início do conflito (EUA × Irã)",
+        "cor": "#6A1B9A",
+        "dash": "dash"
     },
     {
-        "data": pd.Timestamp("2026-04-13"), "descricao": "Início do Bloqueio Naval",
-        "cor": "#BF360C", "dash": "dot"
+        "data": pd.Timestamp("2026-04-13"),
+        "descricao": "Início do bloqueio naval",
+        "cor": "#BF360C",
+        "dash": "dot"
     },
     {
-        "data": pd.Timestamp("2026-08-30"), "descricao": "Persistência do Bloqueio Naval",
-        "cor": "#263238", "dash": "dashdot"
+        "data": pd.Timestamp("2026-08-30"),
+        "descricao": "Persistência do bloqueio naval",
+        "cor": "#263238",
+        "dash": "dashdot"
     },
 ]
+
+CORES_FASES = [
+    "#7F8C8D",
+    *[marco["cor"] for marco in MARCOS]
+]
+
+# ---------------------------------------------------------------- Ranking estadual
+
+CORES_RANKING = {
+    "3 maiores valores": "#D94A55",
+    "3 menores valores": "#27AE60",
+}
+
+# ---------------------------------------------------------------- Indicadores e período
+
+COL_PRECO = "Preço médio"
+COL_VARIACAO = "Variação acumulada (%)"
+
+ANO_PROJETO = 2026
+MES_INICIAL = 1
+MES_FINAL = 9
+
+MESES_PT_BR = tuple(mes.upper() for mes in MESES_PT)
 
 # ---------------------------------------------------------------- Textos fixos do roteiro
 TXT_G1 = "Evolução do preço dos combustíveis a nível Brasil."
