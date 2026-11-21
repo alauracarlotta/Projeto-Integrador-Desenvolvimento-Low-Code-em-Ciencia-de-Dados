@@ -14,9 +14,9 @@ Este diretório reúne a documentação e os relatórios de validação das base
 Na raiz do projeto, com o ambiente virtual ativado, execute:
 
 ```bash
-python scripts/auditar_bases.py
-python scripts/comparar_raw_processed.py
-python scripts/comparar_eia.py
+python -m scripts.auditar_bases
+python -m scripts.comparar_raw_processed
+python -m scripts.comparar_eia
 ```
 
 Os scripts verificam a integridade das bases tratadas e comparam os preços médios da ANP e as cotações do Brent com os respectivos arquivos originais.

@@ -1,14 +1,15 @@
 # Relatório de auditoria dos dados tratados
 
 **Projeto Integrador:** Instabilidade geopolítica e preços dos combustíveis no Brasil  
-**Data da validação:** 18/11/2026  
+**Data da validação:** 18/11/2026 
+**Revalidação:** após a refatoração dos módulos do dashboard
 **Issue relacionada:** #12 — Implementar a leitura dos dados tratados
 
 ## 1. Objetivo
 
 Verificar a integridade das bases tratadas da ANP e da EIA, sua correspondência com os arquivos originais e a consistência do pareamento temporal utilizado pelo dashboard.
 
-O período disponível nas bases ANP compreende janeiro a setembro de 2026, mantendo fevereiro a agosto como recorte central da investigação.
+O período de análise compreende janeiro a setembro de 2026, considerando as semanas efetivamente disponíveis nas bases ANP e suas respectivas correspondências temporais com as cotações semanais do petróleo Brent.
 
 ## 2. Verificações realizadas
 
@@ -58,7 +59,25 @@ Após a correção, a comparação EIA apresentou 45 registros pareados, nenhuma
 
 A auditoria geral foi executada novamente, mantendo o resultado de 25 verificações sem falhas.
 
-## 6. Evidências
+## 6. Revalidação após a refatoração
+
+Após a reorganização e modularização do código-fonte do dashboard, a auditoria automatizada foi executada novamente para verificar a integridade das bases utilizadas pela aplicação.
+
+Os resultados apresentaram:
+
+- 25 verificações automatizadas, sem falhas.
+- 117 registros na base nacional da ANP.
+- 3.134 registros na base estadual da ANP.
+- 45 registros na base EIA Brent.
+- 27 unidades federativas e cinco regiões brasileiras.
+- 117 observações nacionais pareadas entre ANP e EIA.
+- Nenhum aviso emitido pelos carregadores das bases.
+
+Os resultados confirmaram a manutenção dos critérios de integridade estrutural e pareamento temporal após a refatoração.
+
+A revalidação complementa a auditoria original, preservando o histórico das verificações e das correções anteriormente realizadas.
+
+## 7. Evidências
 
 - `scripts/auditar_bases.py`
 - `scripts/comparar_raw_processed.py`
@@ -67,7 +86,7 @@ A auditoria geral foi executada novamente, mantendo o resultado de 25 verificaç
 - `docs/validacao/auditoria_eia.csv`
 - `docs/validacao/pareamento_anp_eia.csv`
 
-## 7. Conclusão
+## 8. Conclusão
 
 As bases tratadas foram aprovadas nas verificações realizadas de integridade estrutural, continuidade temporal nacional, pareamento ANP × EIA e correspondência dos valores analisados com os arquivos originais.
 
