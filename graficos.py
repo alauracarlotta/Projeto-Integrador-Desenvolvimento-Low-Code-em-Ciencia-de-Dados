@@ -21,6 +21,19 @@ def chart_base(chart, height=320):
         .configure_view(stroke=None)
     )
 
+def eixo_meses_pt_br():
+    """Padroniza os rótulos temporais dos gráficos em português."""
+    meses = ", ".join(
+        f"'{mes}'" for mes in config.MESES_PT_BR
+    )
+
+    return alt.Axis(
+        tickCount="month",
+        labelExpr=(
+            f"[{meses}][month(datum.value)]"
+            " + '/' + year(datum.value)"
+        )
+    )
 
 def marks(chart, begin, end, enabled):
     """Adiciona os marcos geopolíticos dentro do período selecionado."""
@@ -70,10 +83,7 @@ def line_chart(
         x=alt.X(
             "Semana:T",
             title="Semanas",
-            axis=alt.Axis(
-                format="%b/%Y",
-                tickCount="month"
-            )
+            axis=eixo_meses_pt_br()
         ),
         y=alt.Y(
             f"{y}:Q",
@@ -201,10 +211,7 @@ def grafico_brent(df, y, smooth, marcos, inicio, fim):
         x=alt.X(
             "Semana:T",
             title="Semanas",
-            axis=alt.Axis(
-                format="%b/%Y",
-                tickCount="month"
-            )
+            axis=eixo_meses_pt_br()
         ),
         y=alt.Y(
             f"{y}:Q",
