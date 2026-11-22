@@ -6,6 +6,7 @@ import streamlit as st
 import config
 import carregamento as cg
 import analises as an
+import eletromobilidade as em
 
 st.set_page_config(page_title='Instabilidade geopolítica | SENAC', page_icon='⛽', layout='wide')
 
@@ -480,6 +481,9 @@ with st.container(border=True):
     st.caption(
         'Fonte: ANP e EIA. Associação estatística não demonstra causalidade. '
         'A linha de regressão e os indicadores correspondem à abrangência selecionada.')
+
+# Análise complementar: Brent × eletromobilidade.
+em.renderizar_eletromobilidade()
 
 with st.expander('▣ Metodologia e fontes'):
     st.markdown('**Fontes:** ANP, preços semanais nacionais e estaduais; EIA, Brent semanal. As datas ANP são semanas iniciadas aos domingos; cada cotação semanal do Brent é pareada com a semana ANP que a contém. Não há interpolação de semanas ausentes. A média regional é simples entre UFs disponíveis; o ranking por preço usa a média semanal no período filtrado. Os indicadores nacionais utilizam a base Brasil, não a média de estados.')

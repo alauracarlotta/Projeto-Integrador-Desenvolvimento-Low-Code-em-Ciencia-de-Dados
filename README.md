@@ -51,6 +51,7 @@ A solução consiste em um dashboard interativo que permite explorar dados nacio
 | Ranking estadual | Comparação dos preços médios e das variações entre as UFs. |
 | Evolução do Brent | Cotação internacional, variação acumulada e média móvel de quatro semanas. |
 | Dispersão e regressão | Associação entre o preço do Brent e os preços dos combustíveis. |
+| Análise complementar de eletromobilidade | Associação entre as variações mensais do Brent e os emplacamentos de automóveis elétricos no Brasil. |
 
 ### Análises estatísticas
 
@@ -73,12 +74,13 @@ A solução consiste em um dashboard interativo que permite explorar dados nacio
 
 ## 📊 Fontes de dados
 
-O projeto utiliza dados públicos provenientes de duas fontes oficiais:
+O projeto utiliza dados públicos provenientes de três fontes:
 
 | Fonte | Dados utilizados | Periodicidade | Unidade |
 |---|---|---|---|
 | [ANP](https://www.gov.br/anp/pt-br) | Preços médios de revenda dos combustíveis | Semanal | R$/litro |
 | [EIA](https://www.eia.gov/dnav/pet/hist/RBRTEw.htm) | Europe Brent Spot Price FOB | Semanal | US$/barril |
+| [Fenabrave](https://www.fenabrave.org.br/portalv2/Conteudo/Emplacamentos) | Emplacamentos de automóveis elétricos | Mensal | Unidades |
 
 ### Escopo da análise
 
@@ -86,6 +88,7 @@ O projeto utiliza dados públicos provenientes de duas fontes oficiais:
 - **Abrangência:** Brasil, cinco regiões e 27 unidades federativas.
 - **Combustíveis:** gasolina comum, etanol hidratado e óleo diesel S10.
 - **Petróleo:** Brent.
+- **Análise complementar:** emplacamentos de automóveis elétricos no Brasil, de janeiro a setembro de 2026, independentemente dos filtros globais.
 
 ### Bases tratadas
 
@@ -139,6 +142,22 @@ O modelo considera:
 
 Os resultados permitem avaliar a direção e a intensidade da associação linear observada, bem como estimar a variação do preço do combustível associada à variação de uma unidade no preço do Brent.
 
+### Análise complementar de eletromobilidade
+
+A análise complementar investiga a associação entre as variações mensais do petróleo Brent e os emplacamentos de automóveis elétricos no Brasil.
+
+Os dados da Fenabrave foram extraídos automaticamente dos relatórios mensais, selecionando a categoria B) Elétricos da tabela Mercado de Eletrificados Autos, sem incluir veículos híbridos ou comerciais leves.
+
+Foram utilizados os valores originalmente publicados em cada edição, sem incorporar revisões posteriores.
+
+Os preços semanais do Brent foram agregados por média aritmética mensal, considerando o mês da data original de cada observação.
+
+A integração contempla nove registros mensais, de janeiro a setembro de 2026, resultando em oito observações pareadas de variação percentual mensal.
+
+A visualização é apresentada em um gráfico de dispersão com regressão linear simples, coeficiente de correlação de Pearson, R² e número de observações.
+
+A análise possui abrangência nacional e período fixo, sendo independente dos filtros globais do dashboard.
+
 ## 🛠️ Tecnologias utilizadas
 
 | Tecnologia | Finalidade |
@@ -155,6 +174,7 @@ Os resultados permitem avaliar a direção e a intensidade da associação linea
 | GitHub | Hospedagem do código e gerenciamento das atividades. |
 | Streamlit Community Cloud | Publicação da aplicação web. |
 | Canva | Prototipação visual da interface. |
+| PyPDF | Extração automatizada dos dados dos relatórios da Fenabrave. |
 
 ## 🏗️ Arquitetura do projeto
 
@@ -174,22 +194,27 @@ projeto_integrador/
 │
 ├── data/
 │   ├── raw/
+│   │   └── fenabrave/
 │   └── processed/
 │
 ├── docs/
-│   └── validacao/
+│   ├── validacao/
+│   └── wireframe/
 │
 ├── scripts/
 │   ├── auditar_bases.py
 │   ├── comparar_raw_processed.py
-│   └── comparar_eia.py
+│   ├── comparar_eia.py
+│   └── extrair_fenabrave.py
 │
 ├── app.py
 ├── analises.py
 ├── carregamento.py
 ├── config.py
 ├── graficos.py
+├── eletromobilidade.py
 ├── requirements.txt
+├── requirements-dev.txt
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -203,10 +228,13 @@ projeto_integrador/
 | `analises.py` | Cálculos, agregações, indicadores, pareamentos e análises estatísticas. |
 | `carregamento.py` | Carregamento, validação, padronização e filtragem das bases. |
 | `config.py` | Configurações, constantes, caminhos, nomenclaturas, cores e marcos geopolíticos. |
+| `eletromobilidade.py` | Integração, análise estatística e visualização complementar dos emplacamentos de automóveis elétricos. |
 | `graficos.py` | Construção e configuração das visualizações. |
 | `assets/css/styles.css` | Estilização personalizada da interface. |
 | `.streamlit/config.toml` | Configuração visual nativa do Streamlit. |
+| `scripts/extrair_fenabrave.py` | Extração e consolidação dos dados mensais dos relatórios da Fenabrave. |
 | `requirements.txt` | Dependências necessárias para execução da aplicação. |
+| `requirements-dev.txt` | Dependências adicionais para reprodução dos processos de tratamento de dados. |
 
 O ambiente virtual (`venv/`) é criado localmente e não deve ser versionado.
 
@@ -254,6 +282,22 @@ As bases foram submetidas a verificações automatizadas de integridade estrutur
 | Falhas na auditoria | 0 |
 
 A auditoria automatizada foi executada novamente após a refatoração dos módulos, mantendo o resultado de 25 verificações sem falhas.
+
+### Validação complementar da base Fenabrave
+
+Os registros extraídos automaticamente dos relatórios mensais da Fenabrave foram conferidos manualmente com as respectivas fontes originais.
+
+| Indicador | Resultado |
+|---|---:|
+| Relatórios mensais analisados | 9 |
+| Registros extraídos | 9 |
+| Registros conferidos | 9 |
+| Correspondências | 9 |
+| Divergências | 0 |
+| Meses integrados ao Brent | 9 |
+| Observações pareadas de variação mensal | 8 |
+
+A conferência confirmou a correspondência integral entre os valores extraídos e os originalmente publicados nos relatórios mensais.
 
 ### Reproduzir a auditoria
 
@@ -333,6 +377,28 @@ export PI_BASES_DIR="/caminho/para/as/bases"
 $env:PI_BASES_DIR = "C:\caminho\para\as\bases"
 ```
 
+### Reproduzir a extração dos dados da Fenabrave
+
+Para reproduzir o processo de extração dos relatórios originais, instale as dependências adicionais de desenvolvimento:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+Execute a extração:
+
+```bash
+python -m scripts.extrair_fenabrave
+```
+
+Para consultar a integração e as métricas estatísticas da análise complementar, execute:
+
+```bash
+python -m eletromobilidade
+```
+
+A análise complementar utiliza as bases disponíveis em `data/processed/`, independentemente da variável `PI_BASES_DIR`.
+
 ## ☁️ Publicação
 
 A aplicação está publicada no Streamlit Community Cloud, integrado ao repositório GitHub.
@@ -352,6 +418,10 @@ O dashboard pode ser acessado diretamente pelo navegador, sem necessidade de ins
 - As médias regionais não são ponderadas.
 - Os marcos geopolíticos são referências contextuais selecionadas para a investigação e requerem fundamentação documental.
 - Os resultados estão restritos ao período e às bases analisadas.
+- A análise complementar de eletromobilidade possui apenas oito observações pareadas, limitando o poder estatístico da investigação.
+- Os emplacamentos não representam necessariamente compras realizadas no mesmo mês.
+- A análise de eletromobilidade não controla fatores como sazonalidade, lançamentos de veículos, condições de financiamento, promoções ou disponibilidade de estoque.
+- Os dados mensais da Fenabrave correspondem às publicações originais de cada edição, sem incorporação de revisões posteriores.
 
 A interpretação dos resultados deve considerar essas limitações, evitando atribuir exclusivamente ao contexto geopolítico ou às oscilações do Brent as variações observadas nos preços dos combustíveis.
 
@@ -377,13 +447,14 @@ A organização das atividades permitiu acompanhar o desenvolvimento, registrar 
 - [Resultados da auditoria automatizada](docs/validacao/resultado_auditoria.csv)
 - [Auditoria da base EIA](docs/validacao/auditoria_eia.csv)
 - [Pareamento nacional ANP × EIA](docs/validacao/pareamento_anp_eia.csv)
+- [Metodologia e validação da análise de eletromobilidade](docs/validacao/eletromobilidade.md)
 
 ## 👩‍💻 Autoras
 
 Projeto desenvolvido por:
 
-- **[Laura Carlota](https://github.com/alauracarlotta)**
-- **[Flávia](https://github.com/CalegariF)**
+- **[Laura Carlota Custódio](https://github.com/alauracarlotta)**
+- **[Flávia Calegari](https://github.com/CalegariF)**
 
 **Instituição:** Centro Universitário Senac  
 **Curso:** Análise e Desenvolvimento de Sistemas  
