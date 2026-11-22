@@ -22,16 +22,16 @@ Acesse a aplicação interativa publicada no Streamlit Community Cloud:
 | Dashboard funcional | [Acessar aplicação](https://pi-combustiveis-2026.streamlit.app/) |
 | Bases de dados utilizadas | [Bases originais](data/raw/) e [Bases tratadas](data/processed/) |
 | Protótipo do dashboard | [Canva](https://canva.link/9gryvcd15olx1xl) |
-| Documento com três conclusões | Pendente de publicação |
+| Documento com três conclusões | [Acessar PDF](docs/entregaveis/conclusoes.pdf) |
 
 ### Materiais complementares
 
 | Material | Acesso |
 |---|---|
-| Documento acadêmico completo | Pendente de publicação |
-| Relação dos entregáveis | Pendente de publicação |
+| Documento acadêmico completo | [Acessar PDF](docs/entregaveis/__DOC-PRINCIPAL_PROJETO-INTEGRADOR_DESENVOLVIMENTO-LOW-CODE-EM-CIENCIA-DE-DADOS.pdf) |
+| Relação dos entregáveis | [Acessar PDF](docs/entregaveis/_relacao-dos-entregaveis.pdf) |
 | Idealização do projeto (Etapa 1) | [Apresentação no Canva](https://canva.link/9pi6uj5aouwurb0) |
-| Vídeo demonstrativo | Pendente de publicação |
+| Vídeo demonstrativo | [Assistir no YouTube](https://youtu.be/_nwNA4XtXpI) |
 | Documentação técnica | [README.md](README.md) |
 | Validação e auditoria | [Documentação de validação](docs/validacao/) |
 | Análise complementar de eletromobilidade | [Documentação metodológica](docs/validacao/eletromobilidade.md) |
