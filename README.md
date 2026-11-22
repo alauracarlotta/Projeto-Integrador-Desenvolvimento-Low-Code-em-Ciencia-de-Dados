@@ -230,6 +230,7 @@ projeto_integrador/
 │   └── processed/
 │
 ├── docs/
+│   ├── entregaveis/
 │   ├── validacao/
 │   └── wireframe/
 │
