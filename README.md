@@ -20,7 +20,7 @@ Acesse a aplicação interativa publicada no Streamlit Community Cloud:
 | Entregável | Acesso |
 |---|---|
 | Dashboard funcional | [Acessar aplicação](https://pi-combustiveis-2026.streamlit.app/) |
-| Bases de dados utilizadas | [Arquivos CSV](data/processed/) |
+| Bases de dados utilizadas | [Bases originais](data/raw/) e [Bases tratadas](data/processed/) |
 | Protótipo do dashboard | [Canva](https://canva.link/9gryvcd15olx1xl) |
 | Documento com três conclusões | Pendente de publicação |
 
