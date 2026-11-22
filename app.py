@@ -482,14 +482,6 @@ with st.container(border=True):
         'Fonte: ANP e EIA. Associação estatística não demonstra causalidade. '
         'A linha de regressão e os indicadores correspondem à abrangência selecionada.')
 
-# Análise complementar: Brent × eletromobilidade.
-em.renderizar_eletromobilidade()
-
-with st.expander('▣ Metodologia e fontes'):
-    st.markdown('**Fontes:** ANP, preços semanais nacionais e estaduais; EIA, Brent semanal. As datas ANP são semanas iniciadas aos domingos; cada cotação semanal do Brent é pareada com a semana ANP que a contém. Não há interpolação de semanas ausentes. A média regional é simples entre UFs disponíveis; o ranking por preço usa a média semanal no período filtrado. Os indicadores nacionais utilizam a base Brasil, não a média de estados.')
-    st.markdown('**Marcos geopolíticos:** as datas e descrições foram fornecidas no escopo do projeto; são anotações contextuais que exigem validação documental antes da publicação. Correlação não prova causalidade.')
-    for warning in warnings:
-        st.warning(warning)
 with st.expander('▥ Regressões e dados pareados'):
 
     st.caption(
@@ -620,6 +612,9 @@ with st.expander('▥ Regressões e dados pareados'):
             key='download_paired_data'
         )
 
+# ϟ Análise complementar: Brent × eletromobilidade.
+em.renderizar_eletromobilidade()
+
 with st.expander('⇩ Dados filtrados e download'):
     filtered=e[e.UF.isin(selected_ufs)]
     st.dataframe(filtered,hide_index=True,use_container_width=True)
@@ -630,4 +625,11 @@ with st.expander('⇩ Dados filtrados e download'):
             file_name=f'{label}_filtrado.csv',
             mime='text/csv'
         )
-st.caption('Fontes: ANP e EIA | Projeto Integrador SENAC | Dados calculados das bases locais, sem valores simulados')
+
+with st.expander('▣ Metodologia e fontes'):
+    st.markdown('**Fontes:** ANP, preços semanais nacionais e estaduais; EIA, Brent semanal. As datas ANP são semanas iniciadas aos domingos; cada cotação semanal do Brent é pareada com a semana ANP que a contém. Não há interpolação de semanas ausentes. A média regional é simples entre UFs disponíveis; o ranking por preço usa a média semanal no período filtrado. Os indicadores nacionais utilizam a base Brasil, não a média de estados.')
+    st.markdown('**Marcos geopolíticos:** as datas e descrições foram fornecidas no escopo do projeto; são anotações contextuais que exigem validação documental antes da publicação. Correlação não prova causalidade.')
+    for warning in warnings:
+        st.warning(warning)
+
+st.caption('Fontes: [ANP](https://www.gov.br/anp/pt-br) e [EIA](https://www.eia.gov/dnav/pet/hist/RBRTEw.htm) | Projeto Integrador SENAC 2026 | Dados calculados das bases locais, sem valores simulados.')

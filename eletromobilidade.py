@@ -214,7 +214,7 @@ def renderizar_eletromobilidade():
     """Renderiza a análise complementar no dashboard."""
 
     with st.expander(
-        "Análise complementar: Brent × eletromobilidade",
+        "ϟ Análise complementar: Brent × eletromobilidade",
         expanded=False
     ):
         st.markdown(
@@ -254,7 +254,9 @@ def renderizar_eletromobilidade():
             )
 
             st.caption(
-                "Fontes: Fenabrave e EIA. "
+                "Fontes: "
+                "[Fenabrave](https://www.fenabrave.org.br/portalv2/Conteudo/Emplacamentos) e "
+                "[EIA](https://www.eia.gov/dnav/pet/hist/RBRTEw.htm). "
                 "Abrangência: Brasil. "
                 "Período: janeiro a setembro de 2026. "
                 "Variações mensais: fevereiro a setembro. "
@@ -267,6 +269,19 @@ def renderizar_eletromobilidade():
                 "significância estatística ao nível de 5% "
                 f"(p = {metricas['p_valor']:.4f}) "
                 "e não permite estabelecer causalidade."
+            )
+            
+            # Download da base mensal integrada.
+            st.download_button(
+                label="⇩ Baixar dados mensais (CSV)",
+                data=base.to_csv(
+                    index=False,
+                    sep=";",
+                    decimal=","
+                ).encode("utf-8-sig"),
+                file_name="brent_eletromobilidade_2026.csv",
+                mime="text/csv",
+                key="download_eletromobilidade"
             )
 
         except (OSError, ValueError, KeyError) as erro:
