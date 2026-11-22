@@ -13,6 +13,30 @@ Acesse a aplicação interativa publicada no Streamlit Community Cloud:
 
 **[Acessar dashboard](https://pi-combustiveis-2026.streamlit.app/)**
 
+## 🎓 Entregáveis acadêmicos | Etapa 2
+
+### Entregáveis obrigatórios
+
+| Entregável | Acesso |
+|---|---|
+| Dashboard funcional | [Acessar aplicação](https://pi-combustiveis-2026.streamlit.app/) |
+| Bases de dados utilizadas | [Arquivos CSV](data/processed/) |
+| Protótipo do dashboard | [Canva](https://canva.link/9gryvcd15olx1xl) |
+| Documento com três conclusões | Pendente de publicação |
+
+### Materiais complementares
+
+| Material | Acesso |
+|---|---|
+| Documento acadêmico completo | Pendente de publicação |
+| Relação dos entregáveis | Pendente de publicação |
+| Idealização do projeto (Etapa 1) | [Apresentação no Canva](https://canva.link/9pi6uj5aouwurb0) |
+| Vídeo demonstrativo | Pendente de publicação |
+| Documentação técnica | [README.md](README.md) |
+| Validação e auditoria | [Documentação de validação](docs/validacao/) |
+| Análise complementar de eletromobilidade | [Documentação metodológica](docs/validacao/eletromobilidade.md) |
+| Gestão do projeto | [Quadro Kanban](https://github.com/users/alauracarlotta/projects/4/views/1) |
+
 ## 📌 Sobre o projeto
 
 Projeto Integrador desenvolvido no curso de **Análise e Desenvolvimento de Sistemas do Centro Universitário Senac**, com foco na aplicação de ferramentas de ciência de dados e desenvolvimento low-code.
@@ -94,9 +118,17 @@ O projeto utiliza dados públicos provenientes de três fontes:
 
 Os arquivos utilizados pela aplicação estão disponíveis em `data/processed/`:
 
-- `Base_Semanal_Brasil_2026_Tratada.csv`
-- `Base_Semanal_Estados_2026_Tratada.csv`
-- `Base_Brent_Weekly_2026_Tratada.csv`
+| Arquivo | Conteúdo |
+|---|---|
+| `Base_Semanal_Brasil_2026_Tratada.csv` | Preços médios nacionais dos combustíveis |
+| `Base_Semanal_Estados_2026_Tratada.csv` | Preços médios dos combustíveis nas 27 unidades federativas |
+| `Base_Brent_Weekly_2026_Tratada.csv` | Cotações semanais do petróleo Brent |
+| `Base_Mensal_Eletricos_2026.csv` | Emplacamentos mensais de automóveis exclusivamente elétricos |
+
+### Acesso às bases de dados
+
+- [Bases originais](data/raw/)
+- [Bases tratadas](data/processed/)
 
 Os arquivos originais são preservados no diretório `data/raw/`, permitindo a reprodução das verificações de integridade e correspondência dos dados.
 
@@ -439,6 +471,12 @@ As atividades foram distribuídas em quatro milestones:
 | M4 | Documento de conclusões |
 
 A organização das atividades permitiu acompanhar o desenvolvimento, registrar decisões técnicas, documentar validações e distribuir as responsabilidades entre as integrantes do projeto.
+
+### Acompanhamento das atividades
+
+- [Quadro Kanban do projeto](https://github.com/users/alauracarlotta/projects/4/views/1)
+- [Histórico de atividades (Issues)](../../issues?q=is%3Aissue)
+- [Marcos de desenvolvimento (Milestones)](../../milestones)
 
 ## 📚 Documentação complementar
 
